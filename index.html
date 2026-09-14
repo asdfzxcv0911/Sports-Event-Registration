@@ -775,15 +775,17 @@
             return JSON.parse(jsonPayload);
         }
 
-        // 處理 Google 登入回傳結果
+        // 處理 Google 登入回傳結果 (升級版：強制轉小寫比對)
         window.handleCredentialResponse = function(response) {
             const payload = decodeJwtResponse(response.credential);
-            const userEmail = payload.email;
+            const userEmail = payload.email.toLowerCase(); // 強制轉小寫以防萬一
 
-            // 檢查信箱是否在授權名單中
-            if (AUTHORIZED_EMAILS.includes(userEmail)) {
+            // 檢查信箱是否在授權名單中 (且不分大小寫比對)
+            const isAuthorized = AUTHORIZED_EMAILS.some(email => email.toLowerCase() === userEmail);
+
+            if (isAuthorized) {
                 showToast('身分驗證成功，歡迎進入系統', 'success');
-                document.getElementById('adminUserEmail').innerHTML = `<i class="fa-solid fa-user-circle"></i> ${userEmail}`;
+                document.getElementById('adminUserEmail').innerHTML = `<i class="fa-solid fa-user-circle"></i> ${payload.email}`;
                 
                 // 切換到後台儀表板
                 document.getElementById('viewAdminAuth').classList.add('opacity-0');
@@ -795,7 +797,7 @@
                     renderAdminClasses(); renderAdminEvents();
                 }, 500);
             } else {
-                showToast(`身分驗證失敗：${userEmail} 無存取權限`, 'error');
+                showToast(`身分驗證失敗：${payload.email} 無存取權限`, 'error');
             }
         };
 
