@@ -231,7 +231,6 @@
                         <h2 class="text-2xl font-bold text-slate-800">開放報名班級清單</h2>
                     </div>
                     
-                    <!-- 班級設定輸入區 (加入編輯取消按鈕) -->
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 flex flex-col sm:flex-row gap-3 items-end">
                         <div class="flex-1 w-full">
                             <label class="block text-xs font-bold text-slate-500 mb-1">年級 (如: 3)</label>
@@ -249,7 +248,6 @@
                             <label class="block text-xs font-bold text-slate-500 mb-1">班級密碼</label>
                             <input type="text" id="newClassPassword" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="密碼">
                         </div>
-                        <!-- 新增：取消與儲存按鈕 -->
                         <button id="cancelEditClassBtn" class="hidden w-full sm:w-auto bg-slate-400 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-500 h-[42px]">取消</button>
                         <button id="addAdminClassBtn" class="w-full sm:w-auto bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 h-[42px] transition-colors">新增</button>
                     </div>
@@ -296,7 +294,6 @@
                             </div>
                             <input type="hidden" id="newEventIcon" value="fa-solid fa-person-running">
                         </div>
-                        <!-- 新增：取消與儲存按鈕 -->
                         <button id="cancelEditEventBtn" class="hidden w-full md:w-auto bg-slate-400 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-500 h-[42px] mt-2 md:mt-0">取消</button>
                         <button id="addAdminEventBtn" class="w-full md:w-auto bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 h-[42px] mt-2 md:mt-0 transition-colors">新增</button>
                     </div>
@@ -328,15 +325,15 @@
         const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
 
         /* ====================================================================
-           資料層 (Data Layer)
+           資料層 (Data Layer) - 【修改點】所有 find 和 filter 都轉成字串比對
            ==================================================================== */
         const AppState = {
             classes: [], events: [], students: [],
             
             addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
-            removeClass: function(id) { this.classes = this.classes.filter(c => c.id !== id); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
+            removeClass: function(id) { this.classes = this.classes.filter(c => String(c.id) !== String(id)); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
             addEvent: function(e) { this.events.push(e); syncEventsToCloud(); renderAdminEvents(); },
-            removeEvent: function(id) { this.events = this.events.filter(e => e.id !== id); syncEventsToCloud(); renderAdminEvents(); },
+            removeEvent: function(id) { this.events = this.events.filter(e => String(e.id) !== String(id)); syncEventsToCloud(); renderAdminEvents(); },
             moveItem: function(type, index, direction) {
                 const arr = this[type];
                 if (index + direction < 0 || index + direction >= arr.length) return;
@@ -345,7 +342,7 @@
                 else { syncEventsToCloud(); renderAdminEvents(); }
             },
             toggleEventAllow: function(eventId, grade) {
-                const ev = this.events.find(e => e.id === eventId);
+                const ev = this.events.find(e => String(e.id) === String(eventId));
                 if(ev) {
                     const idx = ev.excludeGrades.indexOf(grade);
                     if(idx > -1) ev.excludeGrades.splice(idx, 1);
@@ -432,7 +429,7 @@
             }
 
             const selectedClassId = e.target.value;
-            currentMatrixState.students = AppState.students.filter(s => s.classId === selectedClassId);
+            currentMatrixState.students = AppState.students.filter(s => String(s.classId) === String(selectedClassId));
 
             if(currentMatrixState.students.length === 0) {
                 showToast('找不到此班級的學生名單，請確認試算表設定', 'error');
@@ -730,7 +727,7 @@
         function syncEventsToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveEvents', events: AppState.events }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('項目已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
 
         // ==========================================
-        // 【新增功能】編輯班級與項目邏輯
+        // 編輯班級與項目邏輯
         // ==========================================
         let editingClassId = null;
         let editingEventId = null;
@@ -750,7 +747,6 @@
                             <button onclick="AppState.moveItem('classes', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
                             <button onclick="AppState.moveItem('classes', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
                         </div>
-                        <!-- 新增：編輯按鈕 -->
                         <button onclick="editClass('${c.id}')" class="text-slate-400 hover:text-blue-500 p-2 transition-colors mr-1" title="編輯班級"><i class="fa-solid fa-pen"></i></button>
                         <button onclick="confirmDeleteClass('${c.id}', '${c.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
                     </td>`;
@@ -760,12 +756,13 @@
         
         window.confirmDeleteClass = function(id, name) { showConfirm(`確定要刪除「${name}」嗎？`, () => AppState.removeClass(id)); }
         
+        // 【修改點】尋找資料時加上 String() 強制轉型比對
         window.editClass = function(id) {
-            const c = AppState.classes.find(x => x.id === id);
+            const c = AppState.classes.find(x => String(x.id) === String(id));
             if(!c) return;
             document.getElementById('newClassGrade').value = c.grade;
             document.getElementById('newClassId').value = c.id;
-            document.getElementById('newClassId').disabled = true; // 禁止修改代碼
+            document.getElementById('newClassId').disabled = true; 
             document.getElementById('newClassName').value = c.name;
             document.getElementById('newClassPassword').value = c.password || '';
             
@@ -801,8 +798,8 @@
             if(!grade || !id || !name) return showToast('請填寫完整', 'error');
 
             if (editingClassId) {
-                // 編輯模式
-                const c = AppState.classes.find(x => x.id === editingClassId);
+                // 【修改點】儲存時加上 String() 強制轉型比對
+                const c = AppState.classes.find(x => String(x.id) === String(editingClassId));
                 if(c) {
                     c.grade = parseInt(grade);
                     c.name = name;
@@ -812,10 +809,9 @@
                     renderFrontendClasses();
                     showToast('班級修改成功', 'success');
                 }
-                document.getElementById('cancelEditClassBtn').click(); // 重置按鈕狀態
+                document.getElementById('cancelEditClassBtn').click();
             } else {
-                // 新增模式
-                if(AppState.classes.some(c => c.id === id)) return showToast('代碼已存在', 'error');
+                if(AppState.classes.some(c => String(c.id) === String(id))) return showToast('代碼已存在', 'error');
                 AppState.addClass({ id, name, grade: parseInt(grade), password: password || '' });
                 document.getElementById('newClassGrade').value = ''; 
                 document.getElementById('newClassId').value = ''; 
@@ -849,7 +845,6 @@
                             <button onclick="AppState.moveItem('events', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
                             <button onclick="AppState.moveItem('events', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
                         </div>
-                        <!-- 新增：編輯按鈕 -->
                         <button onclick="editEvent('${e.id}')" class="text-slate-400 hover:text-blue-500 p-2 transition-colors mr-1" title="編輯項目"><i class="fa-solid fa-pen"></i></button>
                         <button onclick="confirmDeleteEvent('${e.id}', '${e.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
                     </td>`;
@@ -859,8 +854,9 @@
         
         window.confirmDeleteEvent = function(id, name) { showConfirm(`確定刪除「${name}」？`, () => AppState.removeEvent(id)); }
         
+        // 【修改點】尋找資料時加上 String() 強制轉型比對
         window.editEvent = function(id) {
-            const ev = AppState.events.find(x => x.id === id);
+            const ev = AppState.events.find(x => String(x.id) === String(id));
             if(!ev) return;
             document.getElementById('newEventId').value = ev.id;
             document.getElementById('newEventId').disabled = true;
@@ -905,7 +901,8 @@
             if(!id || !name || !icon) return showToast('請填寫完整', 'error');
             
             if (editingEventId) {
-                const ev = AppState.events.find(x => x.id === editingEventId);
+                // 【修改點】儲存時加上 String() 強制轉型比對
+                const ev = AppState.events.find(x => String(x.id) === String(editingEventId));
                 if(ev) {
                     ev.name = name;
                     ev.icon = icon;
@@ -913,9 +910,9 @@
                     renderAdminEvents();
                     showToast('項目修改成功', 'success');
                 }
-                document.getElementById('cancelEditEventBtn').click(); // 重置按鈕狀態
+                document.getElementById('cancelEditEventBtn').click(); 
             } else {
-                if(AppState.events.some(e => e.id === id)) return showToast('代碼已存在', 'error');
+                if(AppState.events.some(e => String(e.id) === String(id))) return showToast('代碼已存在', 'error');
                 AppState.addEvent({ id, name, icon, excludeGrades: [] });
                 document.getElementById('newEventId').value = ''; 
                 document.getElementById('newEventName').value = '';
