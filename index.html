@@ -55,7 +55,7 @@
     <!-- ==========================================
          [前台] 報名系統介面
          ========================================== -->
-    <div id="viewFrontend" class="flex flex-col min-h-screen items-center justify-center p-4 relative z-10 transition-opacity duration-500">
+    <div id="viewFrontend" class="flex flex-col min-h-screen items-center justify-start md:justify-center py-8 md:p-4 px-4 relative z-10 transition-opacity duration-500">
         <div class="w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10">
             
             <div class="relative bg-gradient-to-br from-blue-700 to-indigo-900 p-8 md:w-1/4 text-white flex flex-col justify-center overflow-hidden min-h-[200px] md:min-h-[500px]">
@@ -65,8 +65,10 @@
                         ANNUAL SPORTS DAY
                     </div>
                     
+                    <!-- 【修改點】強制分成兩行的標題 -->
                     <h1 class="text-3xl md:text-4xl font-extrabold mb-4 tracking-wider leading-tight">
-                        二苓國小運動會 <span class="text-yellow-400">報名表</span>
+                        <span class="block">二苓國小運動會</span>
+                        <span class="block text-yellow-400 mt-2">報名表</span>
                     </h1>
 
                     <p class="text-blue-100 leading-relaxed text-sm backdrop-blur-sm bg-black/10 p-4 rounded-xl border border-white/10 hidden md:block">
@@ -78,10 +80,10 @@
                 </div>
             </div>
             
-            <div class="p-6 md:p-8 md:w-3/4 bg-white relative flex flex-col max-h-[85vh]">
+            <div class="p-6 md:p-8 md:w-3/4 bg-white relative flex flex-col md:max-h-[85vh]">
                 <form id="registrationForm" class="space-y-6 flex flex-col h-full">
                     
-                    <div id="step1" class="flex flex-col h-full space-y-4">
+                    <div id="step1" class="flex flex-col h-full space-y-4 min-h-0">
                         <div class="flex-shrink-0 flex items-center justify-between">
                             <div class="flex-1 max-w-sm">
                                 <label class="block text-sm font-bold text-slate-700 mb-2">請選擇報名班級</label>
@@ -91,8 +93,7 @@
                             </div>
                         </div>
 
-                        <!-- 報名矩陣圖區塊 -->
-                        <div id="matrixContainer" class="flex-1 min-h-[300px] bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden hidden flex-col">
+                        <div id="matrixContainer" class="flex-1 min-h-[300px] bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden hidden flex-col min-h-0">
                             <div class="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center flex-shrink-0">
                                 <h3 class="font-bold text-indigo-800"><i class="fa-solid fa-table-list mr-2"></i>全班報名點餐單</h3>
                                 <div class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded shadow-sm">
@@ -100,7 +101,7 @@
                                 </div>
                             </div>
                             
-                            <div class="overflow-auto flex-1 matrix-table-wrap">
+                            <div class="overflow-auto flex-1 matrix-table-wrap max-h-[60vh] md:max-h-full">
                                 <table class="w-full text-center border-collapse matrix-table min-w-max" id="regTable">
                                 </table>
                             </div>
@@ -552,9 +553,6 @@
             });
         }
 
-        // ====================================================================
-        // 【修改點】修復 html2canvas 下載截圖時，名字下半部被切掉的問題
-        // ====================================================================
         document.getElementById('goToStep2Btn').addEventListener('click', () => {
             let totalRegistrations = 0;
             Object.values(currentMatrixState.selections).forEach(arr => totalRegistrations += arr.length);
@@ -576,34 +574,45 @@
             currentMatrixState.availableEvents.forEach(ev => {
                 const enrolled = currentMatrixState.students.filter(stu => currentMatrixState.selections[stu.num].includes(ev.id));
                 if(enrolled.length > 0) {
-                    // 分離男生與女生陣列
                     const enrolledM = enrolled.filter(s => s.gender === 'M');
                     const enrolledF = enrolled.filter(s => s.gender === 'F');
 
-                    let gridsHtml = '';
+                    let tablesHtml = '';
                     
-                    // 男生排第一層網格：使用 text-center 置中，並用 py-2 留出上下空間防止截圖切字
                     if(enrolledM.length > 0) {
-                        const stuStrsM = enrolledM.map(s => `
-                            <div class="bg-white border border-slate-200 rounded py-2 px-1 shadow-sm text-center whitespace-nowrap">
-                                <span class="text-slate-400 text-[11px] sm:text-[13px] mr-1 align-middle">${s.num}</span>
-                                <span class="text-blue-600 font-bold text-[13px] sm:text-[15px] align-middle">${s.name}</span>
-                            </div>
-                        `).join('');
-                        
-                        gridsHtml += `<div class="grid grid-cols-5 gap-1 sm:gap-2 mb-2">${stuStrsM}</div>`;
+                        let rowsM = '';
+                        for (let i = 0; i < enrolledM.length; i += 5) {
+                            let chunk = enrolledM.slice(i, i + 5);
+                            let tds = chunk.map(s => `
+                                <td style="border: 1px solid #cbd5e1; background-color: #ffffff; padding: 8px 4px; text-align: center; vertical-align: middle; width: 20%;">
+                                    <span style="color: #94a3b8; font-size: 11px; margin-right: 2px;">${s.num}</span>
+                                    <span style="color: #2563eb; font-weight: bold; font-size: 14px;">${s.name}</span>
+                                </td>
+                            `).join('');
+                            for (let k = chunk.length; k < 5; k++) {
+                                tds += `<td style="border: 1px solid #cbd5e1; background-color: #f8fafc; padding: 8px 4px; width: 20%;"></td>`;
+                            }
+                            rowsM += `<tr>${tds}</tr>`;
+                        }
+                        tablesHtml += `<table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">${rowsM}</table>`;
                     }
 
-                    // 女生排第二層網格
                     if(enrolledF.length > 0) {
-                        const stuStrsF = enrolledF.map(s => `
-                            <div class="bg-white border border-slate-200 rounded py-2 px-1 shadow-sm text-center whitespace-nowrap">
-                                <span class="text-slate-400 text-[11px] sm:text-[13px] mr-1 align-middle">${s.num}</span>
-                                <span class="text-pink-600 font-bold text-[13px] sm:text-[15px] align-middle">${s.name}</span>
-                            </div>
-                        `).join('');
-                        
-                        gridsHtml += `<div class="grid grid-cols-5 gap-1 sm:gap-2">${stuStrsF}</div>`;
+                        let rowsF = '';
+                        for (let i = 0; i < enrolledF.length; i += 5) {
+                            let chunk = enrolledF.slice(i, i + 5);
+                            let tds = chunk.map(s => `
+                                <td style="border: 1px solid #cbd5e1; background-color: #ffffff; padding: 8px 4px; text-align: center; vertical-align: middle; width: 20%;">
+                                    <span style="color: #94a3b8; font-size: 11px; margin-right: 2px;">${s.num}</span>
+                                    <span style="color: #db2777; font-weight: bold; font-size: 14px;">${s.name}</span>
+                                </td>
+                            `).join('');
+                            for (let k = chunk.length; k < 5; k++) {
+                                tds += `<td style="border: 1px solid #cbd5e1; background-color: #f8fafc; padding: 8px 4px; width: 20%;"></td>`;
+                            }
+                            rowsF += `<tr>${tds}</tr>`;
+                        }
+                        tablesHtml += `<table style="width: 100%; border-collapse: collapse;">${rowsF}</table>`;
                     }
                     
                     receiptContainer.innerHTML += `
@@ -612,8 +621,7 @@
                                 <div><i class="${ev.icon} mr-2 text-indigo-500"></i>${ev.name}</div>
                                 <div class="text-xs text-slate-500 font-normal bg-white px-2 py-0.5 rounded-full border border-slate-200">共 ${enrolled.length} 人</div>
                             </div>
-                            <!-- 男生與女生的專屬網格會在這裡顯示 -->
-                            ${gridsHtml}
+                            ${tablesHtml}
                         </div>
                     `;
                 }
@@ -861,7 +869,7 @@
             if (window.location.hostname.includes('usercontent.goog') || window.location.hostname === 'localhost' || window.location.hostname === '') {
                 const devBtn = document.getElementById('devBypassBtn');
                 if(devBtn) {
-                    devBtn.classList.remove('hidden')
+                    devBtn.classList.remove('hidden');
                     devBtn.addEventListener('click', () => {
                         showToast('已啟用開發者通道，跳過登入驗證', 'info');
                         document.getElementById('adminUserEmail').innerHTML = `<i class="fa-solid fa-user-circle"></i> 開發測試者`;
