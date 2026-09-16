@@ -318,8 +318,10 @@
     <script>
         /* ====================================================================
            系統設定區 
+           ★ 請務必確認這裡的網址是您最新的 API_URL！ ★
            ==================================================================== */
         const API_URL = "https://script.google.com/macros/s/AKfycbznUHAGrRxazLgVAiP-iQuW5-1ULDzrDgJt5Pql2VNvu7vpeTsC7EX3hR7wYjOgpfrJAQ/exec";
+        
         const GOOGLE_CLIENT_ID = "196046951115-43vvvc2c60hibgmcs3j1jh37f2e2e4sf.apps.googleusercontent.com";
         const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
 
@@ -330,9 +332,9 @@
             classes: [], events: [], students: [], registrations: [],
             
             addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); },
-            removeClass: function(id) { this.classes = this.classes.filter(c => String(c.id) !== String(id)); syncClassesToCloud(); renderAdminClasses(); },
+            removeClass: function(id) { this.classes = this.classes.filter(c => String(c.id).trim() !== String(id).trim()); syncClassesToCloud(); renderAdminClasses(); },
             addEvent: function(e) { this.events.push(e); syncEventsToCloud(); renderAdminEvents(); },
-            removeEvent: function(id) { this.events = this.events.filter(e => String(e.id) !== String(id)); syncEventsToCloud(); renderAdminEvents(); },
+            removeEvent: function(id) { this.events = this.events.filter(e => String(e.id).trim() !== String(id).trim()); syncEventsToCloud(); renderAdminEvents(); },
             moveItem: function(type, index, direction) {
                 const arr = this[type];
                 if (index + direction < 0 || index + direction >= arr.length) return;
@@ -341,7 +343,7 @@
                 else { syncEventsToCloud(); renderAdminEvents(); }
             },
             toggleEventAllow: function(eventId, grade) {
-                const ev = this.events.find(e => String(e.id) === String(eventId));
+                const ev = this.events.find(e => String(e.id).trim() === String(eventId).trim());
                 if(ev) {
                     const idx = ev.excludeGrades.indexOf(grade);
                     if(idx > -1) ev.excludeGrades.splice(idx, 1);
@@ -350,6 +352,23 @@
                 }
             }
         };
+
+        // ★ 終極無敵密碼過濾器 ★ 
+        // 確保精準抓到您在後台設定的「唯一正確」密碼
+        function getClassPwd(c) {
+            if (!c) return '';
+            if (c.password !== undefined && c.password !== null && String(c.password).trim() !== '') return String(c.password).trim();
+            if (c['密碼'] !== undefined && c['密碼'] !== null && String(c['密碼']).trim() !== '') return String(c['密碼']).trim();
+            if (c.Password !== undefined && c.Password !== null && String(c.Password).trim() !== '') return String(c.Password).trim();
+            if (c.PASSWORD !== undefined && c.PASSWORD !== null && String(c.PASSWORD).trim() !== '') return String(c.PASSWORD).trim();
+            
+            for (let key in c) {
+                if ((key.toLowerCase() === 'password' || key === '密碼') && c[key] !== null && c[key] !== undefined) {
+                    return String(c[key]).trim();
+                }
+            }
+            return '';
+        }
 
         /* ====================================================================
            全域 UI 工具 
@@ -399,22 +418,11 @@
             selections: {} 
         };
 
-        // 【終極修復】徹底解決密碼對不上的問題：不論欄位叫什麼，只要有值就抓出來核對
         document.getElementById('classLoginBtn').addEventListener('click', () => {
             const pwd = document.getElementById('classPwdInput').value.trim();
             if(!pwd) return showToast('請輸入班級密碼', 'error');
 
-            const foundClass = AppState.classes.find(c => {
-                let sheetPwd = '';
-                // 尋找所有的 key，只要轉小寫是 password 或叫做密碼，且有值的，就抓出來
-                for (let key in c) {
-                    if ((key.toLowerCase() === 'password' || key === '密碼') && c[key] !== '' && c[key] !== undefined && c[key] !== null) {
-                        sheetPwd = c[key];
-                        break;
-                    }
-                }
-                return String(sheetPwd).trim() === pwd && pwd !== '';
-            });
+            const foundClass = AppState.classes.find(c => getClassPwd(c) === pwd && pwd !== '');
             
             if(!foundClass) {
                 return showToast('密碼錯誤，請確認後重試', 'error');
@@ -427,10 +435,10 @@
                 return showToast('此年級目前無開放報名項目', 'error'); 
             }
 
-            currentMatrixState.students = AppState.students.filter(s => String(s.classId) === String(foundClass.id));
+            currentMatrixState.students = AppState.students.filter(s => String(s.classId).trim() === String(foundClass.id).trim());
 
             if(currentMatrixState.students.length === 0) {
-                return showToast(`找不到「${foundClass.name}」的學生名單，請確認試算表設定`, 'error');
+                return showToast(`無法登入：在【學生名單】找不到代碼為 ${foundClass.id} 的學生`, 'error');
             }
 
             currentMatrixState.classId = foundClass.id;
@@ -439,11 +447,11 @@
             currentMatrixState.selections = {};
             currentMatrixState.students.forEach(s => currentMatrixState.selections[s.num] = []);
 
-            const pastRegs = AppState.registrations.filter(r => String(r.classId) === String(foundClass.id));
+            const pastRegs = AppState.registrations.filter(r => String(r.classId).trim() === String(foundClass.id).trim());
             pastRegs.forEach(reg => {
                 if(currentMatrixState.selections[reg.num]) {
-                    if(validEvents.some(ev => String(ev.id) === String(reg.eventId))) {
-                        currentMatrixState.selections[reg.num].push(reg.eventId);
+                    if(validEvents.some(ev => String(ev.id).trim() === String(reg.eventId).trim())) {
+                        currentMatrixState.selections[reg.num].push(String(reg.eventId).trim());
                     }
                 }
             });
@@ -721,7 +729,7 @@
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> 送出成功';
                     showToast('報名資料已成功寫入雲端資料庫！', 'success');
                     
-                    AppState.registrations = AppState.registrations.filter(r => String(r.classId) !== String(classId));
+                    AppState.registrations = AppState.registrations.filter(r => String(r.classId).trim() !== String(classId).trim());
                     records.forEach(rec => {
                         AppState.registrations.push({ classId: classId, num: rec.num, eventId: rec.eventId });
                     });
@@ -775,7 +783,7 @@
                     <td class="p-3 text-slate-700 font-bold">${c.grade}</td>
                     <td class="p-3 text-slate-600">${c.id}</td>
                     <td class="p-3 text-indigo-600 font-bold">${c.name}</td>
-                    <td class="p-3 text-slate-600 font-mono font-bold">${c.password || ''}</td>
+                    <td class="p-3 text-slate-600 font-mono font-bold">${getClassPwd(c)}</td>
                     <td class="p-3 text-right">
                         <div class="inline-flex items-center gap-1 mr-4 bg-slate-100 rounded-lg">
                             <button onclick="AppState.moveItem('classes', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
@@ -791,13 +799,13 @@
         window.confirmDeleteClass = function(id, name) { showConfirm(`確定要刪除「${name}」嗎？`, () => AppState.removeClass(id)); }
         
         window.editClass = function(id) {
-            const c = AppState.classes.find(x => String(x.id) === String(id));
+            const c = AppState.classes.find(x => String(x.id).trim() === String(id).trim());
             if(!c) return;
             document.getElementById('newClassGrade').value = c.grade;
             document.getElementById('newClassId').value = c.id;
             document.getElementById('newClassId').disabled = true; 
             document.getElementById('newClassName').value = c.name;
-            document.getElementById('newClassPassword').value = c.password || '';
+            document.getElementById('newClassPassword').value = getClassPwd(c);
             
             const btn = document.getElementById('addAdminClassBtn');
             btn.textContent = '儲存修改';
@@ -823,6 +831,7 @@
             document.getElementById('cancelEditClassBtn').classList.add('hidden');
         });
 
+        // ★ 終極修復：編輯儲存時，強制刪除所有可能的舊密碼欄位，只留下唯一的 password
         document.getElementById('addAdminClassBtn').addEventListener('click', () => {
             const grade = document.getElementById('newClassGrade').value; 
             const id = document.getElementById('newClassId').value; 
@@ -831,18 +840,25 @@
             if(!grade || !id || !name) return showToast('請填寫完整', 'error');
 
             if (editingClassId) {
-                const c = AppState.classes.find(x => String(x.id) === String(editingClassId));
+                const c = AppState.classes.find(x => String(x.id).trim() === String(editingClassId).trim());
                 if(c) {
                     c.grade = parseInt(grade);
                     c.name = name;
+                    
+                    // 強制抹除舊帳，避免試算表出現兩個密碼欄位
+                    delete c['密碼'];
+                    delete c['Password'];
+                    delete c['PASSWORD'];
+                    
                     c.password = password || '';
+                    
                     syncClassesToCloud(); 
                     renderAdminClasses(); 
                     showToast('班級修改成功', 'success');
                 }
                 document.getElementById('cancelEditClassBtn').click();
             } else {
-                if(AppState.classes.some(c => String(c.id) === String(id))) return showToast('代碼已存在', 'error');
+                if(AppState.classes.some(c => String(c.id).trim() === String(id).trim())) return showToast('代碼已存在', 'error');
                 AppState.addClass({ id, name, grade: parseInt(grade), password: password || '' });
                 document.getElementById('newClassGrade').value = ''; 
                 document.getElementById('newClassId').value = ''; 
@@ -886,7 +902,7 @@
         window.confirmDeleteEvent = function(id, name) { showConfirm(`確定刪除「${name}」？`, () => AppState.removeEvent(id)); }
         
         window.editEvent = function(id) {
-            const ev = AppState.events.find(x => String(x.id) === String(id));
+            const ev = AppState.events.find(x => String(x.id).trim() === String(id).trim());
             if(!ev) return;
             document.getElementById('newEventId').value = ev.id;
             document.getElementById('newEventId').disabled = true;
@@ -931,7 +947,7 @@
             if(!id || !name || !icon) return showToast('請填寫完整', 'error');
             
             if (editingEventId) {
-                const ev = AppState.events.find(x => String(x.id) === String(editingEventId));
+                const ev = AppState.events.find(x => String(x.id).trim() === String(editingEventId).trim());
                 if(ev) {
                     ev.name = name;
                     ev.icon = icon;
@@ -941,7 +957,7 @@
                 }
                 document.getElementById('cancelEditEventBtn').click(); 
             } else {
-                if(AppState.events.some(e => String(e.id) === String(id))) return showToast('代碼已存在', 'error');
+                if(AppState.events.some(e => String(e.id).trim() === String(id).trim())) return showToast('代碼已存在', 'error');
                 AppState.addEvent({ id, name, icon, excludeGrades: [] });
                 document.getElementById('newEventId').value = ''; 
                 document.getElementById('newEventName').value = '';
@@ -1018,14 +1034,34 @@
            ==================================================================== */
         document.addEventListener('DOMContentLoaded', () => {
             const cacheBuster = new Date().getTime();
-            fetch(`${API_URL}?action=getData&_t=${cacheBuster}`).then(res => res.json()).then(data => {
-                if(data.status === 'success') {
-                    if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
-                    if(data.events && data.events.length > 0) AppState.events = data.events;
-                    if(data.students && data.students.length > 0) AppState.students = data.students; 
-                    if(data.registrations && data.registrations.length > 0) AppState.registrations = data.registrations;
+            fetch(`${API_URL}?action=getData&_t=${cacheBuster}`)
+            .then(res => {
+                if(!res.ok) throw new Error('網路回應錯誤');
+                return res.text();
+            })
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if(data.status === 'success') {
+                        AppState.classes = data.classes || [];
+                        AppState.events = data.events || [];
+                        AppState.students = data.students || []; 
+                        AppState.registrations = data.registrations || [];
+                        
+                        renderAdminClasses();
+                        renderAdminEvents();
+                    } else {
+                        showToast('⚠️ 試算表資料讀取失敗，請確認內容格式', 'error');
+                    }
+                } catch(e) {
+                    console.error('解析失敗, 可能是網址錯誤或未授權:', text);
+                    showToast('⚠️ 嚴重斷線！請確認您的 API_URL 網址是否正確更新', 'error');
                 }
-            }).catch(err => console.log('載入雲端資料失敗', err));
+            })
+            .catch(err => {
+                console.error('連線失敗:', err);
+                showToast('⚠️ 網路連線失敗，請重新整理網頁', 'error');
+            });
 
             if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) { initGoogleSignIn(); } 
             else if (GOOGLE_CLIENT_ID) { window.onload = initGoogleSignIn; }
