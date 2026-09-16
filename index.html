@@ -117,17 +117,14 @@
 
                     </div>
 
-                    <!-- 【重大排版更新】步驟二：確認報名資料與截圖 (解決按鈕被吃掉，強制寬度統一截圖) -->
+                    <!-- 步驟二：確認報名資料與截圖 -->
                     <div id="step2" class="hidden flex-col h-full min-h-0 w-full gap-2">
                         <div class="border-l-4 border-indigo-500 pl-4 py-1 flex-shrink-0">
                             <h3 class="text-xl font-bold text-slate-800">報名總表確認</h3>
                             <p class="text-xs sm:text-sm text-slate-500">請核對下方名單，確認後即可送出 (可左右滑動查看)。</p>
                         </div>
                         
-                        <!-- 關鍵：這裡加入 flex-1 min-h-0 overflow-auto 讓名單自己捲動，按鈕絕對不會掉下去 -->
                         <div class="overflow-auto flex-1 bg-slate-100 p-2 sm:p-4 rounded-xl w-full min-h-0 shadow-inner border border-slate-200">
-                            
-                            <!-- 關鍵：強制寬度 w-[800px] 確保電腦/手機截圖排版完全一致 -->
                             <div id="receiptArea" class="bg-white p-6 sm:p-8 rounded-xl shadow-sm border border-slate-200 font-sans mx-auto w-[800px] relative flex-shrink-0">
                                 <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none z-0">
                                     <i class="fa-solid fa-school text-9xl"></i>
@@ -156,7 +153,6 @@
                             </div>
                         </div>
                         
-                        <!-- 按鈕區塊 flex-shrink-0 永遠釘在底部 -->
                         <div class="flex flex-row gap-2 pt-2 flex-shrink-0">
                             <button type="button" id="backToStep1Btn" class="w-1/4 bg-white border border-slate-300 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition-all text-xs sm:text-base flex justify-center items-center">
                                 <i class="fa-solid fa-arrow-left"></i> <span class="hidden sm:inline ml-1">返回</span>
@@ -328,10 +324,10 @@
         const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
 
         /* ====================================================================
-           資料層 (Data Layer) - 加入歷史報名資料存放區
+           資料層 (Data Layer) - 【修改點】補上預設的 registrations: [] 空盒子
            ==================================================================== */
         const AppState = {
-            classes: [], events: [], students: [], registrations: [], // ★ 新增 registrations 陣列
+            classes: [], events: [], students: [], registrations: [], // ★ 修正：預防當機的空盒子
             
             addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); },
             removeClass: function(id) { this.classes = this.classes.filter(c => String(c.id) !== String(id)); syncClassesToCloud(); renderAdminClasses(); },
@@ -407,7 +403,8 @@
             const pwd = document.getElementById('classPwdInput').value.trim();
             if(!pwd) return showToast('請輸入班級密碼', 'error');
 
-            const foundClass = AppState.classes.find(c => String(c.password) === String(pwd) && pwd !== '');
+            // 【修改點】加上 .trim() 避免後台輸入密碼時不小心多按了空白鍵導致比對失敗
+            const foundClass = AppState.classes.find(c => String(c.password).trim() === pwd && pwd !== '');
             
             if(!foundClass) {
                 return showToast('密碼錯誤，找不到對應的班級', 'error');
@@ -432,11 +429,10 @@
             currentMatrixState.selections = {};
             currentMatrixState.students.forEach(s => currentMatrixState.selections[s.num] = []);
 
-            // ★ 自動還原歷史紀錄魔法 ★
+            // 自動還原歷史紀錄魔法 (因為有了 registrations 空盒子，這裡絕對不會再當機了)
             const pastRegs = AppState.registrations.filter(r => String(r.classId) === String(foundClass.id));
             pastRegs.forEach(reg => {
                 if(currentMatrixState.selections[reg.num]) {
-                    // 確保歷史紀錄中的項目，現在還有開放報名才打勾
                     if(validEvents.some(ev => String(ev.id) === String(reg.eventId))) {
                         currentMatrixState.selections[reg.num].push(reg.eventId);
                     }
@@ -445,7 +441,7 @@
 
             document.getElementById('dynamicFormTitle').innerHTML = `<i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【${foundClass.name}報名表】`;
             renderMatrixTable();
-            updateMatrixLocks(); // ★ 強制更新所有打勾與計數器狀態
+            updateMatrixLocks(); 
             
             document.getElementById('classLoginSection').classList.add('hidden');
             document.getElementById('classLoginSection').classList.remove('flex');
@@ -495,7 +491,6 @@
                     </td>`;
                 
                 currentMatrixState.availableEvents.forEach(ev => {
-                    // ★ 渲染時如果 selections 陣列裡有這個 eventId，就加上 checked 屬性
                     const isChecked = currentMatrixState.selections[stu.num].includes(ev.id) ? 'checked' : '';
                     html += `<td class="p-3 text-center border-r border-slate-50 last:border-0" id="cell-${stu.num}-${ev.id}">
                         <input type="checkbox" class="checkbox-custom matrix-cb" data-stu="${stu.num}" data-ev="${ev.id}" data-gender="${stu.gender}" ${isChecked}>
@@ -717,7 +712,6 @@
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> 送出成功';
                     showToast('報名資料已成功寫入雲端資料庫！', 'success');
                     
-                    // ★ 送出成功後，在網頁端同步更新記憶，這樣老師再登入才看得到最新資料
                     AppState.registrations = AppState.registrations.filter(r => String(r.classId) !== String(classId));
                     records.forEach(rec => {
                         AppState.registrations.push({ classId: classId, num: rec.num, eventId: rec.eventId });
@@ -1019,7 +1013,7 @@
                     if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
                     if(data.events && data.events.length > 0) AppState.events = data.events;
                     if(data.students && data.students.length > 0) AppState.students = data.students; 
-                    // ★ 接收後台傳來的歷史報名資料
+                    // ★ 接收後台傳來的歷史報名資料，若沒有就保持空盒子
                     if(data.registrations && data.registrations.length > 0) AppState.registrations = data.registrations;
                 }
             }).catch(err => console.log('載入雲端資料失敗', err));
