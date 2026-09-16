@@ -72,7 +72,7 @@
 
                     <p class="text-blue-100 leading-relaxed text-sm backdrop-blur-sm bg-black/10 p-4 rounded-xl border border-white/10 hidden md:block">
                         <i class="fa-solid fa-circle-info mb-2 text-lg"></i><br>
-                        1. 每位學生至多參加 2 項。<br>
+                        1. 憑體育組核發之密碼登入。<br>
                         2. 單一項目<span class="font-bold text-blue-200">男生至多5人</span>、<span class="font-bold text-pink-200">女生至多5人</span>。<br>
                         3. 確認勾選完畢後按送出產生收據。
                     </p>
@@ -83,39 +83,39 @@
                 <form id="registrationForm" class="space-y-6 flex flex-col h-full">
                     
                     <div id="step1" class="flex flex-col h-full space-y-4 min-h-0">
-                        <div class="flex-shrink-0 flex items-center justify-between">
-                            <div class="flex-1 max-w-sm">
-                                <label class="block text-sm font-bold text-slate-700 mb-2">請選擇報名班級</label>
-                                <select id="classSelect" class="w-full border-2 border-slate-200 rounded-xl p-3 focus:border-indigo-500 focus:ring-0 outline-none bg-white font-bold text-slate-700 transition-colors cursor-pointer" required>
-                                    <option value="">載入中...</option>
-                                </select>
+                        
+                        <div id="classLoginSection" class="flex flex-col items-center justify-center border-2 border-slate-200 rounded-2xl p-8 min-h-[300px] bg-slate-50 flex-1">
+                            <i class="fa-solid fa-lock text-5xl mb-4 text-indigo-300"></i>
+                            <h3 class="text-xl font-bold text-slate-700 mb-2">班級專屬登入</h3>
+                            <p class="text-sm text-slate-500 mb-6 text-center">請輸入體育組發放的班級密碼以進入專屬報名表</p>
+                            <div class="flex w-full max-w-sm gap-2">
+                                <input type="password" id="classPwdInput" class="flex-1 border-2 border-slate-300 rounded-xl p-3 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-center font-bold tracking-widest text-xl shadow-inner" placeholder="請輸入密碼">
+                                <button type="button" id="classLoginBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition-all">進入</button>
                             </div>
                         </div>
 
-                        <div id="matrixContainer" class="flex-1 min-h-[300px] bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden hidden flex-col min-h-0">
-                            <div class="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center flex-shrink-0">
-                                <h3 class="font-bold text-indigo-800"><i class="fa-solid fa-table-list mr-2"></i>全班報名點餐單</h3>
-                                <div class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded shadow-sm">
-                                    <i class="fa-solid fa-link"></i> 已連線真實名單
+                        <div id="classRegSection" class="hidden flex-col h-full space-y-4 min-h-0 flex-1">
+                            <!-- 已移除頂部橫幅與切換按鈕，直接顯示矩陣表格以最大化空間 -->
+                            
+                            <div id="matrixContainer" class="flex-1 min-h-[300px] bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden flex flex-col min-h-0 shadow-inner">
+                                <div class="p-3 bg-white border-b border-slate-200 flex justify-center items-center flex-shrink-0">
+                                    <!-- 【修改點】動態班級標題，並移除右側連線標籤 -->
+                                    <h3 class="font-bold text-indigo-800 text-lg sm:text-xl" id="dynamicFormTitle"><i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【班級報名表】</h3>
+                                </div>
+                                
+                                <div class="overflow-auto flex-1 matrix-table-wrap max-h-[60vh] md:max-h-full">
+                                    <table class="w-full text-center border-collapse matrix-table min-w-max" id="regTable">
+                                    </table>
                                 </div>
                             </div>
-                            
-                            <div class="overflow-auto flex-1 matrix-table-wrap max-h-[60vh] md:max-h-full">
-                                <table class="w-full text-center border-collapse matrix-table min-w-max" id="regTable">
-                                </table>
+
+                            <div class="flex-shrink-0 pt-2">
+                                <button type="button" id="goToStep2Btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed">
+                                    下一步：產生報名收據 <i class="fa-solid fa-arrow-right"></i>
+                                </button>
                             </div>
                         </div>
 
-                        <div id="selectPrompt" class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 min-h-[300px]">
-                            <i class="fa-solid fa-arrow-pointer text-4xl mb-3 text-slate-300"></i>
-                            <p class="font-bold">請先於上方選擇班級，展開報名表</p>
-                        </div>
-
-                        <div class="flex-shrink-0 pt-2">
-                            <button type="button" id="goToStep2Btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed">
-                                下一步：產生報名收據 <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                        </div>
                     </div>
 
                     <!-- 步驟二：確認報名資料與截圖 -->
@@ -325,20 +325,20 @@
         const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
 
         /* ====================================================================
-           資料層 (Data Layer) - 【修改點】所有 find 和 filter 都轉成字串比對
+           資料層 (Data Layer)
            ==================================================================== */
         const AppState = {
             classes: [], events: [], students: [],
             
-            addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
-            removeClass: function(id) { this.classes = this.classes.filter(c => String(c.id) !== String(id)); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
+            addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); },
+            removeClass: function(id) { this.classes = this.classes.filter(c => String(c.id) !== String(id)); syncClassesToCloud(); renderAdminClasses(); },
             addEvent: function(e) { this.events.push(e); syncEventsToCloud(); renderAdminEvents(); },
             removeEvent: function(id) { this.events = this.events.filter(e => String(e.id) !== String(id)); syncEventsToCloud(); renderAdminEvents(); },
             moveItem: function(type, index, direction) {
                 const arr = this[type];
                 if (index + direction < 0 || index + direction >= arr.length) return;
                 const temp = arr[index]; arr[index] = arr[index + direction]; arr[index + direction] = temp;
-                if (type === 'classes') { syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); } 
+                if (type === 'classes') { syncClassesToCloud(); renderAdminClasses(); } 
                 else { syncEventsToCloud(); renderAdminEvents(); }
             },
             toggleEventAllow: function(eventId, grade) {
@@ -390,63 +390,66 @@
         }
 
         /* ====================================================================
-           前台：矩陣式報名邏輯
+           前台：矩陣式報名邏輯 (第三階段改為密碼專屬登入)
            ==================================================================== */
         let currentMatrixState = {
-            students: [], availableEvents: [], selections: {} 
+            classId: null,      
+            className: '',      
+            students: [], 
+            availableEvents: [], 
+            selections: {} 
         };
 
-        function renderFrontendClasses() {
-            const select = document.getElementById('classSelect');
-            select.innerHTML = '<option value="">請選擇班級...</option>';
-            AppState.classes.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id; opt.textContent = c.name; opt.dataset.grade = c.grade;
-                select.appendChild(opt);
-            });
-        }
+        // 密碼登入邏輯
+        document.getElementById('classLoginBtn').addEventListener('click', () => {
+            const pwd = document.getElementById('classPwdInput').value.trim();
+            if(!pwd) return showToast('請輸入班級密碼', 'error');
 
-        document.getElementById('classSelect').addEventListener('change', (e) => {
-            const selectContainer = document.getElementById('matrixContainer');
-            const prompt = document.getElementById('selectPrompt');
-            const btn = document.getElementById('goToStep2Btn');
+            const foundClass = AppState.classes.find(c => String(c.password) === String(pwd) && pwd !== '');
             
-            if(!e.target.value) {
-                selectContainer.classList.add('hidden'); selectContainer.classList.remove('flex');
-                prompt.classList.remove('hidden'); prompt.classList.add('flex');
-                btn.disabled = true; return;
+            if(!foundClass) {
+                return showToast('密碼錯誤，找不到對應的班級', 'error');
             }
 
-            const grade = parseInt(e.target.options[e.target.selectedIndex].dataset.grade);
+            const grade = parseInt(foundClass.grade);
             const validEvents = AppState.events.filter(ev => !ev.excludeGrades.includes(grade));
             
             if(validEvents.length === 0) {
-                showToast('此年級目前無開放報名項目', 'error'); 
-                selectContainer.classList.add('hidden'); selectContainer.classList.remove('flex');
-                prompt.classList.remove('hidden'); prompt.classList.add('flex');
-                btn.disabled = true;
-                return;
+                return showToast('此年級目前無開放報名項目', 'error'); 
             }
 
-            const selectedClassId = e.target.value;
-            currentMatrixState.students = AppState.students.filter(s => String(s.classId) === String(selectedClassId));
+            currentMatrixState.students = AppState.students.filter(s => String(s.classId) === String(foundClass.id));
 
             if(currentMatrixState.students.length === 0) {
-                showToast('找不到此班級的學生名單，請確認試算表設定', 'error');
-                selectContainer.classList.add('hidden'); selectContainer.classList.remove('flex');
-                prompt.classList.remove('hidden'); prompt.classList.add('flex');
-                btn.disabled = true;
-                return;
+                return showToast(`找不到「${foundClass.name}」的學生名單，請確認試算表設定`, 'error');
             }
 
+            // 設定全域狀態，綁定該班級
+            currentMatrixState.classId = foundClass.id;
+            currentMatrixState.className = foundClass.name;
             currentMatrixState.availableEvents = validEvents;
             currentMatrixState.selections = {};
             currentMatrixState.students.forEach(s => currentMatrixState.selections[s.num] = []);
 
+            // 渲染報名表畫面 (動態修改標題名稱)
+            document.getElementById('dynamicFormTitle').innerHTML = `<i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【${foundClass.name}報名表】`;
             renderMatrixTable();
-            prompt.classList.remove('flex'); prompt.classList.add('hidden');
-            selectContainer.classList.remove('hidden'); selectContainer.classList.add('flex');
-            btn.disabled = false;
+            
+            // 隱藏登入區塊，顯示專屬報名表
+            document.getElementById('classLoginSection').classList.add('hidden');
+            document.getElementById('classLoginSection').classList.remove('flex');
+            document.getElementById('classRegSection').classList.remove('hidden');
+            document.getElementById('classRegSection').classList.add('flex');
+            
+            showToast(`登入成功！目前為：${foundClass.name}`, 'success');
+        });
+
+        // 支援按 Enter 鍵直接登入
+        document.getElementById('classPwdInput').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('classLoginBtn').click();
+            }
         });
 
         function renderMatrixTable() {
@@ -567,8 +570,7 @@
                 showToast('請至少在表格中勾選一項報名資料', 'error'); return;
             }
 
-            const classSelect = document.getElementById('classSelect');
-            const className = classSelect.options[classSelect.selectedIndex].textContent;
+            const className = currentMatrixState.className;
             document.getElementById('receiptClassName').textContent = className + ' 報名總表';
             
             const now = new Date();
@@ -666,9 +668,8 @@
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 報名資料寫入中...';
             btn.disabled = true;
 
-            const classSelect = document.getElementById('classSelect');
-            const classId = classSelect.value;
-            const className = classSelect.options[classSelect.selectedIndex].textContent;
+            const classId = currentMatrixState.classId;
+            const className = currentMatrixState.className;
             
             let records = [];
             currentMatrixState.students.forEach(stu => {
@@ -704,7 +705,16 @@
                         btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> 確認並送出報名';
                         btn.disabled = false;
                         document.getElementById('registrationForm').reset();
-                        document.getElementById('classSelect').dispatchEvent(new Event('change'));
+                        
+                        // 送出成功後，直接退回密碼登入頁面
+                        document.getElementById('classPwdInput').value = '';
+                        currentMatrixState.classId = null;
+                        currentMatrixState.className = '';
+                        document.getElementById('classRegSection').classList.add('hidden');
+                        document.getElementById('classRegSection').classList.remove('flex');
+                        document.getElementById('classLoginSection').classList.remove('hidden');
+                        document.getElementById('classLoginSection').classList.add('flex');
+                        
                         document.getElementById('step2').classList.add('hidden');
                         document.getElementById('step1').classList.remove('hidden');
                     }, 2000);
@@ -756,7 +766,6 @@
         
         window.confirmDeleteClass = function(id, name) { showConfirm(`確定要刪除「${name}」嗎？`, () => AppState.removeClass(id)); }
         
-        // 【修改點】尋找資料時加上 String() 強制轉型比對
         window.editClass = function(id) {
             const c = AppState.classes.find(x => String(x.id) === String(id));
             if(!c) return;
@@ -798,7 +807,6 @@
             if(!grade || !id || !name) return showToast('請填寫完整', 'error');
 
             if (editingClassId) {
-                // 【修改點】儲存時加上 String() 強制轉型比對
                 const c = AppState.classes.find(x => String(x.id) === String(editingClassId));
                 if(c) {
                     c.grade = parseInt(grade);
@@ -806,7 +814,6 @@
                     c.password = password || '';
                     syncClassesToCloud(); 
                     renderAdminClasses(); 
-                    renderFrontendClasses();
                     showToast('班級修改成功', 'success');
                 }
                 document.getElementById('cancelEditClassBtn').click();
@@ -854,7 +861,6 @@
         
         window.confirmDeleteEvent = function(id, name) { showConfirm(`確定刪除「${name}」？`, () => AppState.removeEvent(id)); }
         
-        // 【修改點】尋找資料時加上 String() 強制轉型比對
         window.editEvent = function(id) {
             const ev = AppState.events.find(x => String(x.id) === String(id));
             if(!ev) return;
@@ -901,7 +907,6 @@
             if(!id || !name || !icon) return showToast('請填寫完整', 'error');
             
             if (editingEventId) {
-                // 【修改點】儲存時加上 String() 強制轉型比對
                 const ev = AppState.events.find(x => String(x.id) === String(editingEventId));
                 if(ev) {
                     ev.name = name;
@@ -993,7 +998,7 @@
                     if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
                     if(data.events && data.events.length > 0) AppState.events = data.events;
                     if(data.students && data.students.length > 0) AppState.students = data.students; 
-                    renderFrontendClasses();
+                    // renderFrontendClasses(); // 下拉選單已廢棄
                 }
             }).catch(err => console.log('載入雲端資料失敗', err));
 
