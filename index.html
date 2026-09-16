@@ -8,23 +8,31 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome 圖示庫 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Identity Services (真實 Google 登入所需) -->
+    <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- html2canvas (產生圖片檔外掛) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
     <style>
-        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
         #bgCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.6; }
 
-        .event-radio:checked + div {
-            border-color: #4f46e5;
-            background-color: #e0e7ff;
-            color: #4f46e5;
+        /* 矩陣表格樣式 */
+        .matrix-table th { position: sticky; top: 0; background-color: #f8fafc; z-index: 10; }
+        .matrix-table th:first-child, .matrix-table td:first-child { 
+            position: sticky; left: 0; background-color: #f8fafc; z-index: 20; 
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
         }
-        .event-radio:checked + div i { color: #4f46e5; }
+        .matrix-table th:first-child { z-index: 30; }
+        
+        /* 鎖定狀態的視覺提示 */
+        .cell-locked { background-color: #f1f5f9; cursor: not-allowed; opacity: 0.6; }
+        .checkbox-custom { width: 24px; height: 24px; cursor: pointer; accent-color: #4f46e5; }
+        .checkbox-custom:disabled { cursor: not-allowed; filter: grayscale(1); }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen font-sans text-slate-800">
@@ -48,103 +56,111 @@
          [前台] 報名系統介面
          ========================================== -->
     <div id="viewFrontend" class="flex flex-col min-h-screen items-center justify-center p-4 relative z-10 transition-opacity duration-500">
-        <div class="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10">
+        <div class="w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative z-10">
             
-            <div class="relative bg-gradient-to-br from-blue-700 to-indigo-900 p-8 md:w-2/5 text-white flex flex-col justify-center overflow-hidden min-h-[250px] md:min-h-[400px]">
+            <div class="relative bg-gradient-to-br from-blue-700 to-indigo-900 p-8 md:w-1/4 text-white flex flex-col justify-center overflow-hidden min-h-[200px] md:min-h-[500px]">
                 <canvas id="bgCanvas"></canvas>
                 <div class="relative z-10">
                     <div class="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold tracking-widest mb-4">
                         ANNUAL SPORTS DAY
                     </div>
-                    <h1 class="text-3xl md:text-4xl font-extrabold mb-4 tracking-wider leading-tight">二苓國小運動會<br><span class="text-yellow-400">個人項目報名</span></h1>
+                    <h1 class="text-3xl md:text-4xl font-extrabold mb-4 tracking-wider leading-tight">二苓國小運動會<br><span class="text-yellow-400">總表報名</span></h1>
                     <p class="text-blue-100 leading-relaxed text-sm backdrop-blur-sm bg-black/10 p-4 rounded-xl border border-white/10 hidden md:block">
-                        請導師填寫各項參賽資訊。<br>
-                        單一項目每班最多可報名 <strong class="text-white">5</strong> 位學生。<br>
-                        送出後資料將自動彙整至體育組。
+                        <i class="fa-solid fa-circle-info mb-2 text-lg"></i><br>
+                        1. 每位學生至多參加 2 項。<br>
+                        2. 單一項目<span class="font-bold text-blue-200">男生至多5人</span>、<span class="font-bold text-pink-200">女生至多5人</span>。<br>
+                        3. 確認勾選完畢後按送出產生收據。
                     </p>
                 </div>
             </div>
             
-            <div class="p-6 md:p-8 md:w-3/5 bg-white relative">
-                <form id="registrationForm" class="space-y-6">
+            <div class="p-6 md:p-8 md:w-3/4 bg-white relative flex flex-col max-h-[85vh]">
+                <form id="registrationForm" class="space-y-6 flex flex-col h-full">
                     
-                    <div id="step1" class="space-y-6 block">
-                        <div>
-                            <label class="block text-sm font-bold text-slate-700 mb-2">班級</label>
-                            <select id="classSelect" class="w-full border-2 border-slate-200 rounded-xl p-3 focus:border-indigo-500 focus:ring-0 outline-none bg-white font-bold text-slate-700 transition-colors cursor-pointer" required>
-                                <option value="">載入中...</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <div class="flex items-center mb-3">
-                                <i class="fa-solid fa-medal text-indigo-500 mr-2 text-xl"></i>
-                                <h3 class="text-lg font-bold text-slate-800">參賽項目 <span class="text-sm font-normal text-slate-400 ml-1">(單選)</span></h3>
-                            </div>
-                            
-                            <div id="eventCardsContainer" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                <div class="col-span-2 sm:col-span-3 text-center py-6 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 text-sm font-bold">
-                                    請先選擇上方班級
-                                </div>
+                    <div id="step1" class="flex flex-col h-full space-y-4">
+                        <div class="flex-shrink-0 flex items-center justify-between">
+                            <div class="flex-1 max-w-sm">
+                                <label class="block text-sm font-bold text-slate-700 mb-2">請選擇報名班級</label>
+                                <select id="classSelect" class="w-full border-2 border-slate-200 rounded-xl p-3 focus:border-indigo-500 focus:ring-0 outline-none bg-white font-bold text-slate-700 transition-colors cursor-pointer" required>
+                                    <option value="">載入中...</option>
+                                </select>
                             </div>
                         </div>
 
-                        <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                            <div class="flex items-center justify-between mb-4 border-b border-slate-200 pb-3">
-                                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                    <i class="fa-solid fa-users text-indigo-500"></i>
-                                    參賽學生
-                                </h3>
-                                <div class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-bold shadow-sm">
-                                    <span id="studentCount">0</span> / 5 人
+                        <!-- 報名矩陣圖區塊 -->
+                        <div id="matrixContainer" class="flex-1 min-h-[300px] bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden hidden flex-col">
+                            <div class="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center flex-shrink-0">
+                                <h3 class="font-bold text-indigo-800"><i class="fa-solid fa-table-list mr-2"></i>全班報名點餐單</h3>
+                                <div class="text-xs font-bold text-indigo-500 bg-white px-2 py-1 rounded shadow-sm">
+                                    樣品屋模式：展示性別分流
                                 </div>
                             </div>
                             
-                            <!-- 初始學生名單為空 -->
-                            <div id="studentList" class="space-y-3">
+                            <!-- 表格本體 -->
+                            <div class="overflow-auto flex-1 matrix-table-wrap">
+                                <table class="w-full text-center border-collapse matrix-table min-w-max" id="regTable">
+                                    <!-- JS 動態生成 -->
+                                </table>
                             </div>
-                            
-                            <button type="button" id="addStudentBtn" class="mt-4 w-full py-3 border-2 border-dashed border-indigo-200 text-indigo-600 font-bold rounded-xl hover:bg-indigo-50 hover:border-indigo-400 transition-all flex justify-center items-center gap-2">
-                                <i class="fa-solid fa-plus"></i> 新增一名學生
+                        </div>
+
+                        <div id="selectPrompt" class="flex-1 flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 min-h-[300px]">
+                            <i class="fa-solid fa-arrow-pointer text-4xl mb-3 text-slate-300"></i>
+                            <p class="font-bold">請先於上方選擇班級，展開報名表</p>
+                        </div>
+
+                        <div class="flex-shrink-0 pt-2">
+                            <button type="button" id="goToStep2Btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed">
+                                下一步：產生報名收據 <i class="fa-solid fa-arrow-right"></i>
                             </button>
                         </div>
-
-                        <button type="button" id="goToStep2Btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2">
-                            下一步：確認報名資料 <i class="fa-solid fa-arrow-right"></i>
-                        </button>
                     </div>
 
-                    <!-- 步驟二：確認報名資料 (純文字版) -->
-                    <div id="step2" class="space-y-6 hidden">
-                        <div class="border-l-4 border-indigo-500 pl-4 py-1 mb-6">
-                            <h3 class="text-xl font-bold text-slate-800">最後確認</h3>
-                            <p class="text-sm text-slate-500">請核對以下報名資訊，確認無誤後即可送出。</p>
+                    <!-- 步驟二：確認報名資料與截圖 -->
+                    <div id="step2" class="space-y-6 hidden flex flex-col h-full">
+                        <div class="border-l-4 border-indigo-500 pl-4 py-1 flex-shrink-0">
+                            <h3 class="text-xl font-bold text-slate-800">報名總表確認</h3>
+                            <p class="text-sm text-slate-500">請核對下方名單，確認後即可下載圖片或送出。</p>
                         </div>
                         
-                        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm font-bold text-slate-700 text-lg leading-relaxed">
-                            <div class="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-6 mb-3 pb-3 border-b border-slate-100">
-                                <div class="w-20 text-slate-400 text-base font-normal">報名班級</div>
-                                <div id="confirmClassName" class="text-indigo-700 text-xl"></div>
-                            </div>
-                            
-                            <div class="flex flex-col sm:flex-row sm:items-baseline gap-2 sm:gap-6 mb-3 pb-3 border-b border-slate-100">
-                                <div class="w-20 text-slate-400 text-base font-normal">比賽項目</div>
-                                <div id="confirmEventName" class="text-indigo-700 text-xl"></div>
-                            </div>
+                        <div class="overflow-auto flex-1 bg-slate-100 p-4 rounded-2xl">
+                            <div id="receiptArea" class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 font-sans mx-auto max-w-2xl relative">
+                                <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none z-0">
+                                    <i class="fa-solid fa-school text-9xl"></i>
+                                </div>
 
-                            <div class="flex flex-col sm:flex-row gap-2 sm:gap-6 mt-4">
-                                <div class="w-20 text-slate-400 text-base font-normal pt-1">參賽選手</div>
-                                <div id="confirmStudentList" class="flex-1 space-y-2">
+                                <div class="relative z-10">
+                                    <div class="text-center border-b-2 border-slate-800 pb-4 mb-6">
+                                        <h2 class="text-2xl font-extrabold text-slate-800 tracking-widest">二苓國小運動會</h2>
+                                        <p class="text-lg font-bold text-indigo-600 mt-1" id="receiptClassName">班級名稱</p>
+                                        <p class="text-xs text-slate-400 mt-2">系統產出時間：<span id="receiptTime"></span></p>
+                                    </div>
+                                    
+                                    <div id="receiptContent" class="space-y-5 text-slate-700">
+                                        <!-- JS 動態生成 -->
+                                    </div>
+                                    
+                                    <div class="mt-8 pt-4 border-t border-slate-200 flex justify-between items-end">
+                                        <div class="text-sm font-bold text-slate-400">
+                                            班級導師簽名：________________
+                                        </div>
+                                        <div class="text-xs text-slate-300 text-right">
+                                            二苓報名系統
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="flex flex-col sm:flex-row gap-4 pt-4">
-                            <button type="button" id="backToStep1Btn" class="sm:w-1/3 bg-white border-2 border-slate-300 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-50 transition-all flex justify-center items-center gap-2">
+                        <div class="flex flex-col sm:flex-row gap-3 pt-2 flex-shrink-0">
+                            <button type="button" id="backToStep1Btn" class="sm:w-1/4 bg-white border-2 border-slate-300 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-slate-50 transition-all">
                                 <i class="fa-solid fa-arrow-left"></i> 返回修改
                             </button>
-                            <button type="submit" id="finalSubmitBtn" class="sm:w-2/3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2">
-                                <i class="fa-solid fa-check"></i> 確認送出報名
+                            <button type="button" id="downloadImgBtn" class="sm:w-1/4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
+                                <i class="fa-solid fa-camera"></i> 下載圖片
+                            </button>
+                            <button type="submit" id="finalSubmitBtn" class="sm:w-2/4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> 模擬送出報名
                             </button>
                         </div>
                     </div>
@@ -160,7 +176,7 @@
 
 
     <!-- ==========================================
-         [後台] 系統管理員介面 (真實 Google 登入)
+         [後台] 系統管理員介面 
          ========================================== -->
     <div id="viewAdminAuth" class="min-h-screen items-center justify-center p-4 bg-slate-900 hidden opacity-0 transition-opacity duration-500 relative z-50 flex">
         <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
@@ -170,16 +186,13 @@
             <h2 class="text-2xl font-bold text-slate-800 mb-2">後台安全驗證</h2>
             <p class="text-sm text-slate-500 mb-6">請使用體育組授權的 Google 帳號登入系統。</p>
             
-            <!-- Google 按鈕容器 -->
             <div id="googleSignInBtn" class="flex justify-center mb-4"></div>
-            
             <p id="googleAuthWarning" class="text-xs text-red-500 font-bold mt-2">請設定您的 Google Client ID 才能啟用登入功能。</p>
 
             <button id="backToFrontBtn1" class="mt-6 text-sm text-slate-400 hover:text-slate-600 underline">返回報名系統</button>
         </div>
     </div>
 
-    <!-- 後台控制面板 -->
     <div id="viewAdminDashboard" class="min-h-screen bg-slate-100 hidden opacity-0 transition-opacity duration-500 relative z-40">
         <header class="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -207,7 +220,6 @@
             </aside>
 
             <div class="flex-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 min-h-[500px]">
-                <!-- 班級設定 Tab -->
                 <div id="tab-classes" class="admin-tab-content block">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-slate-800">開放報名班級清單</h2>
@@ -244,7 +256,6 @@
                     </div>
                 </div>
 
-                <!-- 比賽項目設定 Tab -->
                 <div id="tab-events" class="admin-tab-content hidden">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-2xl font-bold text-slate-800">比賽項目設定</h2>
@@ -260,7 +271,6 @@
                             <input type="text" id="newEventName" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="如: 100公尺短跑">
                         </div>
                         
-                        <!-- 視覺化圖示選擇區 -->
                         <div class="flex-[2] w-full">
                             <label class="block text-xs font-bold text-slate-500 mb-1">選擇圖示</label>
                             <div class="flex gap-2" id="iconSelector">
@@ -272,7 +282,6 @@
                             </div>
                             <input type="hidden" id="newEventIcon" value="fa-solid fa-person-running">
                         </div>
-                        
                         <button id="addAdminEventBtn" class="w-full md:w-auto bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 h-[42px] mt-2 md:mt-0">新增</button>
                     </div>
 
@@ -298,74 +307,68 @@
         /* ====================================================================
            系統設定區 
            ==================================================================== */
-        
-        // ★ 您的 Google Apps Script URL
         const API_URL = "https://script.google.com/macros/s/AKfycbznUHAGrRxazLgVAiP-iQuW5-1ULDzrDgJt5Pql2VNvu7vpeTsC7EX3hR7wYjOgpfrJAQ/exec";
-
-        // ★ 您的 Google Client ID
         const GOOGLE_CLIENT_ID = "196046951115-43vvvc2c60hibgmcs3j1jh37f2e2e4sf.apps.googleusercontent.com";
-
-        // ★ 允許登入的授權信箱列表 (請確認這是您的真實信箱)
         const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
 
-
         /* ====================================================================
-           資料層 (Data Layer) 
+           資料層 (Data Layer) 與 假名單產生器 (加入性別)
            ==================================================================== */
         const AppState = {
-            classes: [],
-            events: [],
+            classes: [], events: [],
             
             addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
             removeClass: function(id) { this.classes = this.classes.filter(c => c.id !== id); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
-            addEvent: function(e) { this.events.push(e); syncEventsToCloud(); renderAdminEvents(); renderFrontendEvents(document.getElementById('classSelect').options[document.getElementById('classSelect').selectedIndex]?.dataset?.grade); },
-            removeEvent: function(id) { this.events = this.events.filter(e => e.id !== id); syncEventsToCloud(); renderAdminEvents(); renderFrontendEvents(document.getElementById('classSelect').options[document.getElementById('classSelect').selectedIndex]?.dataset?.grade); },
-            
-            // 上下移陣列元素
+            addEvent: function(e) { this.events.push(e); syncEventsToCloud(); renderAdminEvents(); },
+            removeEvent: function(id) { this.events = this.events.filter(e => e.id !== id); syncEventsToCloud(); renderAdminEvents(); },
             moveItem: function(type, index, direction) {
                 const arr = this[type];
                 if (index + direction < 0 || index + direction >= arr.length) return;
-                const temp = arr[index];
-                arr[index] = arr[index + direction];
-                arr[index + direction] = temp;
-                
-                if (type === 'classes') {
-                    syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses();
-                } else {
-                    syncEventsToCloud(); renderAdminEvents(); 
-                    renderFrontendEvents(document.getElementById('classSelect').options[document.getElementById('classSelect').selectedIndex]?.dataset?.grade);
-                }
+                const temp = arr[index]; arr[index] = arr[index + direction]; arr[index + direction] = temp;
+                if (type === 'classes') { syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); } 
+                else { syncEventsToCloud(); renderAdminEvents(); }
             },
-
-            // 年級開放邏輯 (UI打勾代表允許，所以如果有打勾，要把他從 excludeGrades 裡面移除)
             toggleEventAllow: function(eventId, grade) {
                 const ev = this.events.find(e => e.id === eventId);
                 if(ev) {
                     const idx = ev.excludeGrades.indexOf(grade);
-                    if(idx > -1) {
-                        // 之前是被排除的，現在打勾了 -> 移除排除名單 (代表開放)
-                        ev.excludeGrades.splice(idx, 1);
-                    } else {
-                        // 之前是開放的，現在取消勾選了 -> 加入排除名單 (代表禁止)
-                        ev.excludeGrades.push(grade);
-                    }
+                    if(idx > -1) ev.excludeGrades.splice(idx, 1);
+                    else ev.excludeGrades.push(grade);
                     syncEventsToCloud(); renderAdminEvents();
-                    renderFrontendEvents(document.getElementById('classSelect').options[document.getElementById('classSelect').selectedIndex]?.dataset?.grade);
                 }
             }
         };
 
-        // --- 全域 UI 工具 ---
+        // 隨機產生假學生的工具 (加入男女生判斷)
+        function getMockStudentsForClass(className) {
+            const mockData = [
+                { name: "陳大頭", gender: "M" }, { name: "王小明", gender: "M" }, { name: "林小美", gender: "F" },
+                { name: "張小強", gender: "M" }, { name: "李阿花", gender: "F" }, { name: "吳聰明", gender: "M" },
+                { name: "劉美麗", gender: "F" }, { name: "黃大山", gender: "M" }, { name: "周小弟", gender: "M" },
+                { name: "楊大姐", gender: "F" }, { name: "郭小豪", gender: "M" }, { name: "趙芷若", gender: "F" }
+            ];
+            let students = [];
+            for(let i=1; i<=12; i++) {
+                students.push({ 
+                    num: i.toString().padStart(2, '0'), 
+                    name: mockData[i-1].name, 
+                    gender: mockData[i-1].gender 
+                });
+            }
+            return students;
+        }
+
+        /* ====================================================================
+           全域 UI 工具 
+           ==================================================================== */
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             const bgColor = type === 'success' ? 'bg-emerald-500' : (type === 'error' ? 'bg-red-500' : 'bg-indigo-500');
             const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info');
-            
             toast.className = `${bgColor} text-white px-6 py-3 rounded-full shadow-lg font-bold flex items-center gap-2 transform transition-all duration-300 translate-y-[-20px] opacity-0 z-50`;
             toast.innerHTML = `<i class="fa-solid ${icon}"></i> ${message}`;
             container.appendChild(toast);
-            
             setTimeout(() => { toast.classList.remove('translate-y-[-20px]', 'opacity-0'); }, 10);
             setTimeout(() => { toast.classList.add('opacity-0', 'scale-95'); setTimeout(() => toast.remove(), 300); }, 3000);
         }
@@ -374,19 +377,14 @@
             const modal = document.getElementById('confirmModal');
             const box = document.getElementById('confirmBox');
             document.getElementById('confirmMessage').textContent = message;
-            
             modal.classList.remove('hidden');
             setTimeout(() => { modal.classList.remove('opacity-0'); box.classList.remove('scale-95'); }, 10);
-
             const handleOk = () => { closeConfirm(); onConfirm(); cleanup(); };
             const handleCancel = () => { closeConfirm(); cleanup(); };
-            
             const btnOk = document.getElementById('confirmOkBtn');
             const btnCancel = document.getElementById('confirmCancelBtn');
-            
             btnOk.addEventListener('click', handleOk);
             btnCancel.addEventListener('click', handleCancel);
-
             function closeConfirm() {
                 modal.classList.add('opacity-0'); box.classList.add('scale-95');
                 setTimeout(() => modal.classList.add('hidden'), 300);
@@ -398,139 +396,206 @@
         }
 
         /* ====================================================================
-           前端邏輯 (報名表單)
+           前台：矩陣式報名邏輯 (男女分流升級版)
            ==================================================================== */
         
+        let currentMatrixState = {
+            students: [], availableEvents: [], selections: {} 
+        };
+
         function renderFrontendClasses() {
             const select = document.getElementById('classSelect');
             select.innerHTML = '<option value="">請選擇班級...</option>';
-            // 拔除 ID 排序，改用陣列原始排序
             AppState.classes.forEach(c => {
                 const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.name;
-                opt.dataset.grade = c.grade;
+                opt.value = c.id; opt.textContent = c.name; opt.dataset.grade = c.grade;
                 select.appendChild(opt);
             });
         }
 
-        function renderFrontendEvents(selectedGrade) {
-            const container = document.getElementById('eventCardsContainer');
-            container.innerHTML = ''; 
-
-            if (!selectedGrade) {
-                container.innerHTML = '<div class="col-span-2 sm:col-span-3 text-center py-6 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 text-slate-400 text-sm font-bold">請先選擇上方班級</div>';
-                return;
-            }
-
-            let hasVisibleEvents = false;
-            AppState.events.forEach(ev => {
-                // 如果該年級在 excludeGrades 名單內，就隱藏
-                if (ev.excludeGrades.includes(parseInt(selectedGrade))) return;
-                
-                hasVisibleEvents = true;
-                const label = document.createElement('label');
-                label.className = 'cursor-pointer block relative h-full';
-                label.innerHTML = `
-                    <input type="radio" name="eventGroup" value="${ev.id}" class="event-radio sr-only" required>
-                    <div class="h-full rounded-xl border-2 border-slate-200 bg-white p-4 text-center transition-all hover:border-indigo-200 hover:bg-slate-50 text-slate-500 flex flex-col items-center justify-center gap-2 shadow-sm hover:shadow">
-                        <i class="${ev.icon} text-3xl mb-1 transition-colors text-slate-600"></i>
-                        <div class="font-bold text-slate-800 text-[16px] leading-tight">${ev.name}</div>
-                    </div>
-                `;
-                container.appendChild(label);
-            });
-
-            if (!hasVisibleEvents) {
-                container.innerHTML = '<div class="col-span-2 sm:col-span-3 text-center py-6 text-red-500 font-bold">此班級目前無開放報名項目</div>';
-            }
-        }
-
-        // 學生名單管理
-        const studentList = document.getElementById('studentList');
-        const MAX_STUDENTS = 5;
-
-        function updateStudentState() {
-            const items = studentList.querySelectorAll('.student-item');
-            document.getElementById('studentCount').textContent = items.length;
-            document.getElementById('addStudentBtn').style.display = (items.length >= MAX_STUDENTS) ? 'none' : 'flex';
-            
-            studentList.querySelectorAll('.delete-btn').forEach(btn => {
-                // 如果只剩 0 人，防呆不用檢查，因為按鈕會直接把整列刪掉
-                btn.className = `delete-btn p-2 rounded-lg transition-colors text-slate-400 hover:text-red-500 hover:bg-red-50`;
-            });
-        }
-
-        function createStudentRow() {
-            const div = document.createElement('div');
-            div.className = 'student-item flex items-center bg-white p-2 rounded-xl border border-slate-200 shadow-sm focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-50 transition-all';
-            div.innerHTML = `
-                <div class="w-20 sm:w-24">
-                    <input type="number" placeholder="座號" class="student-number w-full border-none bg-transparent focus:ring-0 p-2 text-slate-700 text-center font-bold placeholder-slate-300 outline-none" required min="1" max="99">
-                </div>
-                <div class="w-px h-8 bg-slate-200 mx-1 sm:mx-2"></div>
-                <div class="flex-1">
-                    <input type="text" placeholder="學生姓名" class="student-name w-full border-none bg-transparent focus:ring-0 p-2 text-slate-700 font-bold placeholder-slate-300 outline-none" required>
-                </div>
-                <button type="button" class="delete-btn text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除此學生">
-                    <i class="fa-solid fa-trash-can"></i>
-                </button>
-            `;
-            div.querySelector('.delete-btn').addEventListener('click', () => {
-                div.remove(); updateStudentState();
-            });
-            return div;
-        }
-
-        document.getElementById('addStudentBtn').addEventListener('click', () => {
-            if (studentList.querySelectorAll('.student-item').length < MAX_STUDENTS) {
-                studentList.appendChild(createStudentRow());
-                updateStudentState();
-            }
-        });
-
         document.getElementById('classSelect').addEventListener('change', (e) => {
-            const selectedOpt = e.target.options[e.target.selectedIndex];
-            const grade = selectedOpt.dataset.grade;
-            renderFrontendEvents(grade);
+            const selectContainer = document.getElementById('matrixContainer');
+            const prompt = document.getElementById('selectPrompt');
+            const btn = document.getElementById('goToStep2Btn');
+            
+            if(!e.target.value) {
+                selectContainer.classList.add('hidden'); selectContainer.classList.remove('flex');
+                prompt.classList.remove('hidden'); prompt.classList.add('flex');
+                btn.disabled = true; return;
+            }
+
+            const grade = parseInt(e.target.options[e.target.selectedIndex].dataset.grade);
+            const validEvents = AppState.events.filter(ev => !ev.excludeGrades.includes(grade));
+            
+            if(validEvents.length === 0) {
+                showToast('此年級目前無開放報名項目', 'error'); return;
+            }
+
+            const className = e.target.options[e.target.selectedIndex].textContent;
+            currentMatrixState.students = getMockStudentsForClass(className);
+            currentMatrixState.availableEvents = validEvents;
+            currentMatrixState.selections = {};
+            currentMatrixState.students.forEach(s => currentMatrixState.selections[s.num] = []);
+
+            renderMatrixTable();
+            prompt.classList.remove('flex'); prompt.classList.add('hidden');
+            selectContainer.classList.remove('hidden'); selectContainer.classList.add('flex');
+            btn.disabled = false;
         });
+
+        function renderMatrixTable() {
+            const table = document.getElementById('regTable');
+            let html = '';
+
+            // 表頭：增加男女獨立計數器
+            html += `<thead><tr class="bg-slate-100 border-b-2 border-slate-200">
+                <th class="p-3 text-left w-32 whitespace-nowrap"><i class="fa-solid fa-users text-indigo-500 mr-2"></i>參賽選手</th>`;
+            
+            currentMatrixState.availableEvents.forEach(ev => {
+                html += `<th class="p-3 text-center min-w-[120px]" id="header-${ev.id}">
+                    <i class="${ev.icon} text-slate-400 text-lg mb-1 block"></i>
+                    <div class="font-bold text-slate-700 text-sm leading-tight">${ev.name}</div>
+                    <div class="flex justify-center gap-1 mt-1">
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 count-m">男 0/5</span>
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-pink-50 text-pink-600 count-f">女 0/5</span>
+                    </div>
+                </th>`;
+            });
+            html += `</tr></thead><tbody class="divide-y divide-slate-100">`;
+
+            // 表身：學生姓名加上性別顏色
+            currentMatrixState.students.forEach(stu => {
+                const nameColor = stu.gender === 'M' ? 'text-blue-600' : 'text-pink-600';
+                
+                html += `<tr class="hover:bg-slate-50 transition-colors" id="row-${stu.num}">
+                    <td class="p-3 font-bold border-r border-slate-100 whitespace-nowrap">
+                        <span class="text-slate-400 mr-1 text-sm">${stu.num}</span> 
+                        <span class="${nameColor}">${stu.name}</span>
+                        <div class="text-[10px] text-slate-400 stu-count-badge">已選: 0/2</div>
+                    </td>`;
+                
+                currentMatrixState.availableEvents.forEach(ev => {
+                    // Checkbox 帶上性別屬性，方便判斷防呆
+                    html += `<td class="p-3 text-center border-r border-slate-50 last:border-0" id="cell-${stu.num}-${ev.id}">
+                        <input type="checkbox" class="checkbox-custom matrix-cb" data-stu="${stu.num}" data-ev="${ev.id}" data-gender="${stu.gender}">
+                    </td>`;
+                });
+                html += `</tr>`;
+            });
+            html += `</tbody>`;
+            table.innerHTML = html;
+
+            document.querySelectorAll('.matrix-cb').forEach(cb => {
+                cb.addEventListener('change', handleMatrixChange);
+            });
+        }
+
+        // 核心防呆邏輯 (升級男女分開計算)
+        function handleMatrixChange(e) {
+            const cb = e.target;
+            const stuNum = cb.dataset.stu;
+            const evId = cb.dataset.ev;
+
+            if(cb.checked) currentMatrixState.selections[stuNum].push(evId);
+            else currentMatrixState.selections[stuNum] = currentMatrixState.selections[stuNum].filter(id => id !== evId);
+
+            updateMatrixLocks();
+        }
+
+        function updateMatrixLocks() {
+            // 1. 分別計算男女生的報名人數
+            let eventCountsM = {}; let eventCountsF = {};
+            currentMatrixState.availableEvents.forEach(ev => { eventCountsM[ev.id] = 0; eventCountsF[ev.id] = 0; });
+            
+            Object.keys(currentMatrixState.selections).forEach(stuNum => {
+                const stu = currentMatrixState.students.find(s => s.num === stuNum);
+                const selectedEvents = currentMatrixState.selections[stuNum];
+                selectedEvents.forEach(evId => {
+                    if(stu.gender === 'M') eventCountsM[evId]++;
+                    else eventCountsF[evId]++;
+                });
+            });
+
+            const allCbs = document.querySelectorAll('.matrix-cb');
+            allCbs.forEach(cb => { cb.disabled = false; cb.parentElement.classList.remove('cell-locked'); });
+
+            // 2. 處理學生個人上限 (每人最多2項)
+            currentMatrixState.students.forEach(stu => {
+                const count = currentMatrixState.selections[stu.num].length;
+                document.querySelector(`#row-${stu.num} .stu-count-badge`).textContent = `已選: ${count}/2`;
+                if(count >= 2) {
+                    document.querySelector(`#row-${stu.num} .stu-count-badge`).classList.replace('text-slate-400', 'text-red-500');
+                    document.querySelectorAll(`.matrix-cb[data-stu="${stu.num}"]:not(:checked)`).forEach(cb => {
+                        cb.disabled = true; cb.parentElement.classList.add('cell-locked');
+                    });
+                } else {
+                    document.querySelector(`#row-${stu.num} .stu-count-badge`).classList.replace('text-red-500', 'text-slate-400');
+                }
+            });
+
+            // 3. 處理項目性別上限 (男女各最多5人)
+            currentMatrixState.availableEvents.forEach(ev => {
+                const countM = eventCountsM[ev.id];
+                const badgeM = document.querySelector(`#header-${ev.id} .count-m`);
+                badgeM.textContent = countM >= 5 ? '男 滿額' : `男 ${countM}/5`;
+                
+                if(countM >= 5) {
+                    badgeM.classList.replace('bg-blue-50', 'bg-red-100'); badgeM.classList.replace('text-blue-600', 'text-red-600');
+                    // 只鎖定「男生」且「沒打勾」的格子
+                    document.querySelectorAll(`.matrix-cb[data-ev="${ev.id}"][data-gender="M"]:not(:checked)`).forEach(cb => {
+                        if(!cb.disabled) { cb.disabled = true; cb.parentElement.classList.add('cell-locked'); }
+                    });
+                } else {
+                    badgeM.classList.replace('bg-red-100', 'bg-blue-50'); badgeM.classList.replace('text-red-600', 'text-blue-600');
+                }
+
+                const countF = eventCountsF[ev.id];
+                const badgeF = document.querySelector(`#header-${ev.id} .count-f`);
+                badgeF.textContent = countF >= 5 ? '女 滿額' : `女 ${countF}/5`;
+                
+                if(countF >= 5) {
+                    badgeF.classList.replace('bg-pink-50', 'bg-red-100'); badgeF.classList.replace('text-pink-600', 'text-red-600');
+                    // 只鎖定「女生」且「沒打勾」的格子
+                    document.querySelectorAll(`.matrix-cb[data-ev="${ev.id}"][data-gender="F"]:not(:checked)`).forEach(cb => {
+                        if(!cb.disabled) { cb.disabled = true; cb.parentElement.classList.add('cell-locked'); }
+                    });
+                } else {
+                    badgeF.classList.replace('bg-red-100', 'bg-pink-50'); badgeF.classList.replace('text-red-600', 'text-pink-600');
+                }
+            });
+        }
+
 
         // Step 1 -> Step 2
         document.getElementById('goToStep2Btn').addEventListener('click', () => {
-            const form = document.getElementById('registrationForm');
-            if (!form.reportValidity()) return;
-
-            // 防呆檢查：至少要有 1 名學生
-            if (studentList.querySelectorAll('.student-item').length === 0) {
-                showToast('請至少新增一位參賽學生才能報名', 'error');
-                return;
-            }
-
-            const selectedEvent = document.querySelector('input[name="eventGroup"]:checked');
-            if(!selectedEvent) {
-                showToast('請選擇一項比賽項目', 'error');
-                return;
+            let totalRegistrations = 0;
+            Object.values(currentMatrixState.selections).forEach(arr => totalRegistrations += arr.length);
+            
+            if (totalRegistrations === 0) {
+                showToast('請至少在表格中勾選一項報名資料', 'error'); return;
             }
 
             const classSelect = document.getElementById('classSelect');
-            document.getElementById('confirmClassName').textContent = classSelect.options[classSelect.selectedIndex].text;
+            const className = classSelect.options[classSelect.selectedIndex].textContent;
+            document.getElementById('receiptClassName').textContent = className + ' 報名總表';
             
-            const evData = AppState.events.find(e => e.id === selectedEvent.value);
-            document.getElementById('confirmEventName').textContent = evData.name;
+            const now = new Date();
+            document.getElementById('receiptTime').textContent = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
 
-            const confirmList = document.getElementById('confirmStudentList');
-            confirmList.innerHTML = '';
-            
-            let count = 1;
-            document.querySelectorAll('.student-item').forEach(item => {
-                const num = item.querySelector('.student-number').value.padStart(2, '0');
-                const name = item.querySelector('.student-name').value;
-                if(num && name) {
-                    const row = document.createElement('div');
-                    row.className = "flex gap-3 text-slate-700 items-center";
-                    row.innerHTML = `<span class="text-slate-400 w-5">(${count})</span> <span class="font-bold w-12">${num}號</span> <span class="font-bold">${name}</span>`;
-                    confirmList.appendChild(row);
-                    count++;
+            const receiptContainer = document.getElementById('receiptContent');
+            receiptContainer.innerHTML = '';
+
+            currentMatrixState.availableEvents.forEach(ev => {
+                const enrolled = currentMatrixState.students.filter(stu => currentMatrixState.selections[stu.num].includes(ev.id));
+                if(enrolled.length > 0) {
+                    // 名字帶上性別顏色
+                    const stuStrs = enrolled.map(s => `${s.num}號 <span class="${s.gender === 'M' ? 'text-blue-600 font-bold' : 'text-pink-600 font-bold'}">${s.name}</span>`).join('、');
+                    receiptContainer.innerHTML += `
+                        <div class="flex items-start">
+                            <div class="font-bold text-indigo-700 w-32 flex-shrink-0"><i class="${ev.icon} mr-2"></i>${ev.name}</div>
+                            <div class="flex-1 text-slate-800">${stuStrs}</div>
+                        </div>
+                    `;
                 }
             });
 
@@ -543,218 +608,132 @@
             document.getElementById('step1').classList.remove('hidden');
         });
 
-        // 最終送出報名
+        // 截圖功能 
+        document.getElementById('downloadImgBtn').addEventListener('click', () => {
+            const btn = document.getElementById('downloadImgBtn');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 圖片產生中...';
+            btn.disabled = true;
+
+            const targetElement = document.getElementById('receiptArea');
+            html2canvas(targetElement, { scale: 2, backgroundColor: '#ffffff' }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `報名總表_${document.getElementById('receiptClassName').textContent.split(' ')[0]}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                btn.innerHTML = originalHTML; btn.disabled = false;
+                showToast('已成功下載報名總表！', 'success');
+            });
+        });
+
+        // 模擬送出報名
         document.getElementById('registrationForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const btn = document.getElementById('finalSubmitBtn');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...';
             btn.disabled = true;
-
-            let studentStrs = [];
-            document.querySelectorAll('.student-item').forEach((item, index) => {
-                const num = item.querySelector('.student-number').value.padStart(2, '0');
-                const name = item.querySelector('.student-name').value;
-                if(num && name) studentStrs.push(`(${index + 1}) ${num}號 ${name}`);
-            });
-
-            const payload = {
-                action: 'submitRegistration',
-                className: document.getElementById('confirmClassName').textContent,
-                eventName: document.getElementById('confirmEventName').textContent,
-                students: studentStrs.join('\n') 
-            };
-
-            fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) })
-            .then(res => res.json())
-            .then(resData => {
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> 確認送出報名';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> 模擬送出報名';
                 btn.disabled = false;
-                
-                if (resData.status === 'success') {
-                    showToast('報名成功！資料已同步至總表。', 'success');
-                    
-                    document.getElementById('registrationForm').reset();
-                    document.getElementById('classSelect').dispatchEvent(new Event('change'));
-                    
-                    // 重置為 0 人狀態
-                    studentList.innerHTML = '';
-                    updateStudentState();
-                    
-                    document.getElementById('step2').classList.add('hidden');
-                    document.getElementById('step1').classList.remove('hidden');
-                } else {
-                    showToast('發生錯誤：' + resData.message, 'error');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> 確認送出報名';
-                btn.disabled = false;
-                showToast('網路錯誤，請檢查連線後重試', 'error');
-            });
+                showToast('【樣品屋模式】報名成功！(無實際上傳)', 'success');
+                document.getElementById('registrationForm').reset();
+                document.getElementById('classSelect').dispatchEvent(new Event('change'));
+                document.getElementById('step2').classList.add('hidden');
+                document.getElementById('step1').classList.remove('hidden');
+            }, 1000);
         });
 
         /* ====================================================================
-           管理員後台邏輯與雲端同步
+           管理員後台邏輯與雲端同步 
            ==================================================================== */
-        
-        function syncClassesToCloud() {
-            fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveClasses', classes: AppState.classes }) })
-            .then(res => res.json())
-            .then(data => { if(data.status === 'success') showToast('班級已同步', 'success'); })
-            .catch(() => showToast('同步失敗', 'error'));
-        }
-
-        function syncEventsToCloud() {
-            fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveEvents', events: AppState.events }) })
-            .then(res => res.json())
-            .then(data => { if(data.status === 'success') showToast('項目已同步', 'success'); })
-            .catch(() => showToast('同步失敗', 'error'));
-        }
+        function syncClassesToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveClasses', classes: AppState.classes }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('班級已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
+        function syncEventsToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveEvents', events: AppState.events }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('項目已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
 
         function renderAdminClasses() {
-            const tbody = document.getElementById('adminClassListTable');
-            tbody.innerHTML = '';
-            
-            // 拔除自動排序，保留陣列順序，並加上上下移按鈕
+            const tbody = document.getElementById('adminClassListTable'); tbody.innerHTML = '';
             AppState.classes.forEach((c, index) => {
-                const isFirst = index === 0;
-                const isLast = index === AppState.classes.length - 1;
-                
-                const tr = document.createElement('tr');
-                tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
+                const isFirst = index === 0; const isLast = index === AppState.classes.length - 1;
+                const tr = document.createElement('tr'); tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
                 tr.innerHTML = `
-                    <td class="p-3 text-slate-700 font-bold">${c.grade}</td>
-                    <td class="p-3 text-slate-600">${c.id}</td>
-                    <td class="p-3 text-indigo-600 font-bold">${c.name}</td>
+                    <td class="p-3 text-slate-700 font-bold">${c.grade}</td><td class="p-3 text-slate-600">${c.id}</td><td class="p-3 text-indigo-600 font-bold">${c.name}</td>
                     <td class="p-3 text-right">
                         <div class="inline-flex items-center gap-1 mr-4 bg-slate-100 rounded-lg">
-                            <button onclick="AppState.moveItem('classes', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''} title="上移"><i class="fa-solid fa-arrow-up"></i></button>
-                            <div class="w-px h-4 bg-slate-200"></div>
-                            <button onclick="AppState.moveItem('classes', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''} title="下移"><i class="fa-solid fa-arrow-down"></i></button>
+                            <button onclick="AppState.moveItem('classes', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
+                            <button onclick="AppState.moveItem('classes', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
                         </div>
-                        <button onclick="confirmDeleteClass('${c.id}', '${c.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
-                    </td>
-                `;
+                        <button onclick="confirmDeleteClass('${c.id}', '${c.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>`;
                 tbody.appendChild(tr);
             });
         }
-
-        window.confirmDeleteClass = function(id, name) {
-            showConfirm(`確定要刪除「${name}」嗎？`, () => AppState.removeClass(id));
-        }
-
+        window.confirmDeleteClass = function(id, name) { showConfirm(`確定要刪除「${name}」嗎？`, () => AppState.removeClass(id)); }
         document.getElementById('addAdminClassBtn').addEventListener('click', () => {
-            const grade = document.getElementById('newClassGrade').value;
-            const id = document.getElementById('newClassId').value;
-            const name = document.getElementById('newClassName').value;
+            const grade = document.getElementById('newClassGrade').value; const id = document.getElementById('newClassId').value; const name = document.getElementById('newClassName').value;
             if(!grade || !id || !name) return showToast('請填寫完整', 'error');
             if(AppState.classes.some(c => c.id === id)) return showToast('代碼已存在', 'error');
-            
             AppState.addClass({ id, name, grade: parseInt(grade) });
             document.getElementById('newClassGrade').value = ''; document.getElementById('newClassId').value = ''; document.getElementById('newClassName').value = '';
         });
 
-        // 圖示選擇器點擊邏輯
         document.querySelectorAll('#iconSelector .icon-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                // 清除所有按鈕的選取狀態
-                document.querySelectorAll('#iconSelector .icon-btn').forEach(b => {
-                    b.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
-                    b.classList.add('border-transparent', 'text-slate-400');
-                });
-                // 加上當前按鈕的選取狀態
-                const currentBtn = e.currentTarget;
-                currentBtn.classList.remove('border-transparent', 'text-slate-400');
-                currentBtn.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
-                
-                // 設定隱藏欄位的值
+                document.querySelectorAll('#iconSelector .icon-btn').forEach(b => { b.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-600'); b.classList.add('border-transparent', 'text-slate-400'); });
+                const currentBtn = e.currentTarget; currentBtn.classList.remove('border-transparent', 'text-slate-400'); currentBtn.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
                 document.getElementById('newEventIcon').value = currentBtn.dataset.icon;
             });
         });
 
         function renderAdminEvents() {
-            const tbody = document.getElementById('adminEventListTable');
-            tbody.innerHTML = '';
-            
-            // 拔除自動排序，加上上下移按鈕
+            const tbody = document.getElementById('adminEventListTable'); tbody.innerHTML = '';
             AppState.events.forEach((e, index) => {
-                const isFirst = index === 0;
-                const isLast = index === AppState.events.length - 1;
-                
-                const tr = document.createElement('tr');
-                tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
-                
+                const isFirst = index === 0; const isLast = index === AppState.events.length - 1;
+                const tr = document.createElement('tr'); tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
                 let gradeCheckboxes = '';
                 [3, 4, 5, 6].forEach(g => {
-                    // UI 反轉邏輯：沒有被排除 (不在 excludeGrades 內) ＝ 開放 (打勾)
                     const isChecked = !e.excludeGrades.includes(g) ? 'checked' : '';
-                    gradeCheckboxes += `
-                        <label class="inline-flex items-center mr-3 cursor-pointer select-none">
-                            <input type="checkbox" ${isChecked} onchange="AppState.toggleEventAllow('${e.id}', ${g})" class="form-checkbox h-4 w-4 text-indigo-600 rounded border-slate-300 cursor-pointer">
-                            <span class="ml-1 text-sm ${isChecked ? 'text-indigo-700 font-bold' : 'text-slate-400'}">${g}年級</span>
-                        </label>
-                    `;
+                    gradeCheckboxes += `<label class="inline-flex items-center mr-3 cursor-pointer select-none"><input type="checkbox" ${isChecked} onchange="AppState.toggleEventAllow('${e.id}', ${g})" class="form-checkbox h-4 w-4 text-indigo-600 rounded border-slate-300 cursor-pointer"><span class="ml-1 text-sm ${isChecked ? 'text-indigo-700 font-bold' : 'text-slate-400'}">${g}年級</span></label>`;
                 });
-
                 tr.innerHTML = `
-                    <td class="p-3 text-slate-400 text-xl"><i class="${e.icon}"></i></td>
-                    <td class="p-3"><div class="font-bold text-slate-800">${e.name}</div><div class="text-xs text-slate-400">${e.id}</div></td>
-                    <td class="p-3">${gradeCheckboxes}</td>
+                    <td class="p-3 text-slate-400 text-xl"><i class="${e.icon}"></i></td><td class="p-3"><div class="font-bold text-slate-800">${e.name}</div><div class="text-xs text-slate-400">${e.id}</div></td><td class="p-3">${gradeCheckboxes}</td>
                     <td class="p-3 text-right">
                         <div class="inline-flex items-center gap-1 mr-4 bg-slate-100 rounded-lg">
-                            <button onclick="AppState.moveItem('events', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''} title="上移"><i class="fa-solid fa-arrow-up"></i></button>
-                            <div class="w-px h-4 bg-slate-200"></div>
-                            <button onclick="AppState.moveItem('events', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''} title="下移"><i class="fa-solid fa-arrow-down"></i></button>
+                            <button onclick="AppState.moveItem('events', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
+                            <button onclick="AppState.moveItem('events', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
                         </div>
-                        <button onclick="confirmDeleteEvent('${e.id}', '${e.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
-                    </td>
-                `;
+                        <button onclick="confirmDeleteEvent('${e.id}', '${e.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>`;
                 tbody.appendChild(tr);
             });
         }
-
         window.confirmDeleteEvent = function(id, name) { showConfirm(`確定刪除「${name}」？`, () => AppState.removeEvent(id)); }
-
         document.getElementById('addAdminEventBtn').addEventListener('click', () => {
-            const id = document.getElementById('newEventId').value;
-            const name = document.getElementById('newEventName').value;
-            const icon = document.getElementById('newEventIcon').value;
+            const id = document.getElementById('newEventId').value; const name = document.getElementById('newEventName').value; const icon = document.getElementById('newEventIcon').value;
             if(!id || !name || !icon) return showToast('請填寫完整', 'error');
             if(AppState.events.some(e => e.id === id)) return showToast('代碼已存在', 'error');
-            
-            // 新增項目時，預設全部開放 (excludeGrades 空陣列代表沒有人被排除)
             AppState.addEvent({ id, name, icon, excludeGrades: [] });
             document.getElementById('newEventId').value = ''; document.getElementById('newEventName').value = '';
         });
 
         window.switchAdminTab = function(tabName) {
-            document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-            
+            document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hidden')); document.getElementById(`tab-${tabName}`).classList.remove('hidden');
             ['classes', 'events'].forEach(t => {
                 const btn = document.getElementById(`tabBtn-${t}`);
-                if(t === tabName) {
-                    btn.classList.replace('text-slate-600', 'text-indigo-700'); btn.classList.replace('hover:bg-slate-50', 'bg-indigo-50');
-                } else {
-                    btn.classList.replace('text-indigo-700', 'text-slate-600'); btn.classList.replace('bg-indigo-50', 'hover:bg-slate-50');
-                }
+                if(t === tabName) { btn.classList.replace('text-slate-600', 'text-indigo-700'); btn.classList.replace('hover:bg-slate-50', 'bg-indigo-50'); } 
+                else { btn.classList.replace('text-indigo-700', 'text-slate-600'); btn.classList.replace('bg-indigo-50', 'hover:bg-slate-50'); }
             });
         }
 
         /* ====================================================================
            密門與 Google 真實登入邏輯
            ==================================================================== */
-        
-        // 觸發密門
         let secretClickCount = 0; let secretTimer = null;
         document.getElementById('secretAdminTrigger').addEventListener('click', () => {
             secretClickCount++; clearTimeout(secretTimer);
             if(secretClickCount >= 3) {
                 document.getElementById('viewFrontend').classList.add('hidden');
                 const auth = document.getElementById('viewAdminAuth');
-                auth.classList.remove('hidden');
-                setTimeout(() => auth.classList.remove('opacity-0'), 10);
+                auth.classList.remove('hidden'); setTimeout(() => auth.classList.remove('opacity-0'), 10);
                 secretClickCount = 0;
             }
             secretTimer = setTimeout(() => { secretClickCount = 0; }, 1000);
@@ -765,58 +744,34 @@
             setTimeout(() => { document.getElementById('viewAdminAuth').classList.add('hidden'); document.getElementById('viewFrontend').classList.remove('hidden'); }, 500);
         });
 
-        // 簡易 JWT 解碼器 (解析 Google 回傳的 Token 取得 Email)
         function decodeJwtResponse(token) {
-            var base64Url = token.split('.')[1];
-            var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
+            var base64Url = token.split('.')[1]; var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            var jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) { return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2); }).join(''));
             return JSON.parse(jsonPayload);
         }
 
-        // 處理 Google 登入回傳結果 (升級版：強制轉小寫比對)
         window.handleCredentialResponse = function(response) {
             const payload = decodeJwtResponse(response.credential);
-            const userEmail = payload.email.toLowerCase(); // 強制轉小寫以防萬一
-
-            // 檢查信箱是否在授權名單中 (且不分大小寫比對)
+            const userEmail = payload.email.toLowerCase();
             const isAuthorized = AUTHORIZED_EMAILS.some(email => email.toLowerCase() === userEmail);
-
             if (isAuthorized) {
                 showToast('身分驗證成功，歡迎進入系統', 'success');
                 document.getElementById('adminUserEmail').innerHTML = `<i class="fa-solid fa-user-circle"></i> ${payload.email}`;
-                
-                // 切換到後台儀表板
                 document.getElementById('viewAdminAuth').classList.add('opacity-0');
                 setTimeout(() => {
                     document.getElementById('viewAdminAuth').classList.add('hidden');
                     const dash = document.getElementById('viewAdminDashboard');
-                    dash.classList.remove('hidden');
-                    setTimeout(() => dash.classList.remove('opacity-0'), 10);
+                    dash.classList.remove('hidden'); setTimeout(() => dash.classList.remove('opacity-0'), 10);
                     renderAdminClasses(); renderAdminEvents();
                 }, 500);
-            } else {
-                showToast(`身分驗證失敗：${payload.email} 無存取權限`, 'error');
-            }
+            } else { showToast(`身分驗證失敗：${payload.email} 無存取權限`, 'error'); }
         };
 
-        // 初始化 Google 登入按鈕
         function initGoogleSignIn() {
-            if (!GOOGLE_CLIENT_ID) {
-                console.error("尚未填寫 GOOGLE_CLIENT_ID");
-                return;
-            }
-            document.getElementById('googleAuthWarning').classList.add('hidden'); // 隱藏警告
-            
-            google.accounts.id.initialize({
-                client_id: GOOGLE_CLIENT_ID,
-                callback: handleCredentialResponse
-            });
-            google.accounts.id.renderButton(
-                document.getElementById("googleSignInBtn"),
-                { theme: "outline", size: "large", width: 250 }
-            );
+            if (!GOOGLE_CLIENT_ID) return;
+            document.getElementById('googleAuthWarning').classList.add('hidden');
+            google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: handleCredentialResponse });
+            google.accounts.id.renderButton( document.getElementById("googleSignInBtn"), { theme: "outline", size: "large", width: 250 } );
         }
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -829,44 +784,21 @@
            系統初始化
            ==================================================================== */
         document.addEventListener('DOMContentLoaded', () => {
-            // 從 Google 試算表抓取最新資料
-            fetch(`${API_URL}?action=getData`)
-                .then(res => res.json())
-                .then(data => {
-                    if(data.status === 'success') {
-                        if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
-                        if(data.events && data.events.length > 0) AppState.events = data.events;
-                        renderFrontendClasses();
-                    }
-                })
-                .catch(err => console.log('載入雲端資料失敗', err));
+            fetch(`${API_URL}?action=getData`).then(res => res.json()).then(data => {
+                if(data.status === 'success') {
+                    if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
+                    if(data.events && data.events.length > 0) AppState.events = data.events;
+                    renderFrontendClasses();
+                }
+            }).catch(err => console.log('載入雲端資料失敗', err));
 
-            // 初始化時學生數為 0，所以不需要 appendChild
+            if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) { initGoogleSignIn(); } 
+            else if (GOOGLE_CLIENT_ID) { window.onload = initGoogleSignIn; }
 
-            // 如果有設定 Client ID，就初始化 Google 按鈕
-            if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) {
-                initGoogleSignIn();
-            } else if (GOOGLE_CLIENT_ID) {
-                // 如果 Google API 還沒載入完畢，稍後重試
-                window.onload = initGoogleSignIn;
-            }
-
-            // Canvas 背景動畫 (速度線)
             const bgCanvas = document.getElementById('bgCanvas'); const bgCtx = bgCanvas.getContext('2d'); let lines = [];
             function resizeBgCanvas() { bgCanvas.width = bgCanvas.parentElement.clientWidth; bgCanvas.height = bgCanvas.parentElement.clientHeight; }
-            function initLines() {
-                lines = [];
-                for (let i = 0; i < 40; i++) lines.push({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, length: Math.random() * 100 + 50, speed: Math.random() * 4 + 2, opacity: Math.random() * 0.5 + 0.1, width: Math.random() * 2 + 1 });
-            }
-            function animateBg() {
-                bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
-                lines.forEach(line => {
-                    bgCtx.beginPath(); bgCtx.moveTo(line.x, line.y); bgCtx.lineTo(line.x + line.length, line.y); bgCtx.strokeStyle = `rgba(255, 255, 255, ${line.opacity})`; bgCtx.lineWidth = line.width; bgCtx.stroke();
-                    line.x -= line.speed;
-                    if (line.x + line.length < 0) { line.x = bgCanvas.width; line.y = Math.random() * bgCanvas.height; }
-                });
-                requestAnimationFrame(animateBg);
-            }
+            function initLines() { lines = []; for (let i = 0; i < 40; i++) lines.push({ x: Math.random() * bgCanvas.width, y: Math.random() * bgCanvas.height, length: Math.random() * 100 + 50, speed: Math.random() * 4 + 2, opacity: Math.random() * 0.5 + 0.1, width: Math.random() * 2 + 1 }); }
+            function animateBg() { bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height); lines.forEach(line => { bgCtx.beginPath(); bgCtx.moveTo(line.x, line.y); bgCtx.lineTo(line.x + line.length, line.y); bgCtx.strokeStyle = `rgba(255, 255, 255, ${line.opacity})`; bgCtx.lineWidth = line.width; bgCtx.stroke(); line.x -= line.speed; if (line.x + line.length < 0) { line.x = bgCanvas.width; line.y = Math.random() * bgCanvas.height; } }); requestAnimationFrame(animateBg); }
             window.addEventListener('resize', () => { resizeBgCanvas(); initLines(); });
             resizeBgCanvas(); initLines(); animateBg();
         });
