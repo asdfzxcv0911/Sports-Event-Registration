@@ -65,7 +65,6 @@
                         ANNUAL SPORTS DAY
                     </div>
                     
-                    <!-- 【修改點】強制分成兩行的標題 -->
                     <h1 class="text-3xl md:text-4xl font-extrabold mb-4 tracking-wider leading-tight">
                         <span class="block">二苓國小運動會</span>
                         <span class="block text-yellow-400 mt-2">報名表</span>
@@ -232,6 +231,7 @@
                         <h2 class="text-2xl font-bold text-slate-800">開放報名班級清單</h2>
                     </div>
                     
+                    <!-- 【第二階段修改】新增班級區塊加入「班級密碼」輸入框 -->
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 flex flex-col sm:flex-row gap-3 items-end">
                         <div class="flex-1 w-full">
                             <label class="block text-xs font-bold text-slate-500 mb-1">年級 (數字，如: 3)</label>
@@ -241,9 +241,13 @@
                             <label class="block text-xs font-bold text-slate-500 mb-1">班級代碼 (如: 301)</label>
                             <input type="text" id="newClassId" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="代碼">
                         </div>
-                        <div class="flex-[2] w-full">
+                        <div class="flex-[1.5] w-full">
                             <label class="block text-xs font-bold text-slate-500 mb-1">顯示名稱 (如: 三年1班)</label>
                             <input type="text" id="newClassName" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="顯示名稱">
+                        </div>
+                        <div class="flex-1 w-full">
+                            <label class="block text-xs font-bold text-slate-500 mb-1">班級密碼</label>
+                            <input type="text" id="newClassPassword" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="密碼">
                         </div>
                         <button id="addAdminClassBtn" class="w-full sm:w-auto bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 h-[42px]">新增</button>
                     </div>
@@ -255,6 +259,7 @@
                                     <th class="p-3 font-bold">年級</th>
                                     <th class="p-3 font-bold">班級代碼</th>
                                     <th class="p-3 font-bold">顯示名稱</th>
+                                    <th class="p-3 font-bold">密碼</th> <!-- 新增密碼顯示欄位 -->
                                     <th class="p-3 font-bold text-right">操作與排序</th>
                                 </tr>
                             </thead>
@@ -720,13 +725,17 @@
         function syncClassesToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveClasses', classes: AppState.classes }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('班級已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
         function syncEventsToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveEvents', events: AppState.events }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('項目已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
 
+        // 【第二階段修改】後台渲染班級表格時，加入密碼欄位顯示
         function renderAdminClasses() {
             const tbody = document.getElementById('adminClassListTable'); tbody.innerHTML = '';
             AppState.classes.forEach((c, index) => {
                 const isFirst = index === 0; const isLast = index === AppState.classes.length - 1;
                 const tr = document.createElement('tr'); tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
                 tr.innerHTML = `
-                    <td class="p-3 text-slate-700 font-bold">${c.grade}</td><td class="p-3 text-slate-600">${c.id}</td><td class="p-3 text-indigo-600 font-bold">${c.name}</td>
+                    <td class="p-3 text-slate-700 font-bold">${c.grade}</td>
+                    <td class="p-3 text-slate-600">${c.id}</td>
+                    <td class="p-3 text-indigo-600 font-bold">${c.name}</td>
+                    <td class="p-3 text-slate-600 font-mono font-bold">${c.password || ''}</td>
                     <td class="p-3 text-right">
                         <div class="inline-flex items-center gap-1 mr-4 bg-slate-100 rounded-lg">
                             <button onclick="AppState.moveItem('classes', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
@@ -738,12 +747,20 @@
             });
         }
         window.confirmDeleteClass = function(id, name) { showConfirm(`確定要刪除「${name}」嗎？`, () => AppState.removeClass(id)); }
+        
+        // 【第二階段修改】新增班級時抓取密碼欄位數值
         document.getElementById('addAdminClassBtn').addEventListener('click', () => {
-            const grade = document.getElementById('newClassGrade').value; const id = document.getElementById('newClassId').value; const name = document.getElementById('newClassName').value;
+            const grade = document.getElementById('newClassGrade').value; 
+            const id = document.getElementById('newClassId').value; 
+            const name = document.getElementById('newClassName').value;
+            const password = document.getElementById('newClassPassword').value;
             if(!grade || !id || !name) return showToast('請填寫完整', 'error');
             if(AppState.classes.some(c => c.id === id)) return showToast('代碼已存在', 'error');
-            AppState.addClass({ id, name, grade: parseInt(grade) });
-            document.getElementById('newClassGrade').value = ''; document.getElementById('newClassId').value = ''; document.getElementById('newClassName').value = '';
+            AppState.addClass({ id, name, grade: parseInt(grade), password: password || '' });
+            document.getElementById('newClassGrade').value = ''; 
+            document.getElementById('newClassId').value = ''; 
+            document.getElementById('newClassName').value = '';
+            document.getElementById('newClassPassword').value = '';
         });
 
         document.querySelectorAll('#iconSelector .icon-btn').forEach(btn => {
