@@ -64,11 +64,10 @@
                     <div class="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold tracking-widest mb-4">
                         ANNUAL SPORTS DAY
                     </div>
-                    <!-- 修正1：標題強制分兩行顯示 -->
-                    <h1 class="text-3xl md:text-4xl font-extrabold mb-4 tracking-wider leading-tight">
-                        <div class="block">二苓國小運動會</div>
-                        <div class="block text-yellow-400 mt-1 md:mt-2">報名表</div>
-                    </h1>
+                    <div class="flex flex-col mb-4 gap-2">
+                        <div class="text-3xl md:text-4xl font-extrabold tracking-wider leading-tight">二苓國小運動會</div>
+                        <div class="text-3xl md:text-4xl font-extrabold tracking-wider leading-tight text-yellow-400">報名表</div>
+                    </div>
                     <p class="text-blue-100 leading-relaxed text-sm backdrop-blur-sm bg-black/10 p-4 rounded-xl border border-white/10 hidden md:block">
                         <i class="fa-solid fa-circle-info mb-2 text-lg"></i><br>
                         1. 每位學生至多參加 2 項。<br>
@@ -100,10 +99,8 @@
                                 </div>
                             </div>
                             
-                            <!-- 表格本體 -->
                             <div class="overflow-auto flex-1 matrix-table-wrap">
                                 <table class="w-full text-center border-collapse matrix-table min-w-max" id="regTable">
-                                    <!-- JS 動態生成 -->
                                 </table>
                             </div>
                         </div>
@@ -140,8 +137,7 @@
                                         <p class="text-xs text-slate-400 mt-2">系統產出時間：<span id="receiptTime"></span></p>
                                     </div>
                                     
-                                    <div id="receiptContent" class="space-y-6 text-slate-700">
-                                        <!-- JS 動態生成 -->
+                                    <div id="receiptContent" class="space-y-5 text-slate-700">
                                     </div>
                                     
                                     <div class="mt-8 pt-4 border-t border-slate-200 flex justify-between items-end">
@@ -163,8 +159,9 @@
                             <button type="button" id="downloadImgBtn" class="sm:w-1/4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
                                 <i class="fa-solid fa-camera"></i> 下載圖片
                             </button>
+                            <!-- 【按鈕解鎖】已正式連線真實伺服器 -->
                             <button type="submit" id="finalSubmitBtn" class="sm:w-2/4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2">
-                                <i class="fa-solid fa-cloud-arrow-up"></i> 模擬送出報名
+                                <i class="fa-solid fa-cloud-arrow-up"></i> 確認並送出報名
                             </button>
                         </div>
                     </div>
@@ -193,7 +190,6 @@
             <div id="googleSignInBtn" class="flex justify-center mb-4"></div>
             <p id="googleAuthWarning" class="text-xs text-red-500 font-bold mt-2">請設定您的 Google Client ID 才能啟用登入功能。</p>
 
-            <!-- 開發測試按鈕 -->
             <button id="devBypassBtn" type="button" class="hidden mt-4 w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-lg shadow-sm transition-colors text-sm flex justify-center items-center gap-2">
                 <i class="fa-solid fa-wrench"></i> [測試專用] 繞過驗證直接進入
             </button>
@@ -321,10 +317,10 @@
         const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
 
         /* ====================================================================
-           資料層 (Data Layer) - 導入真實學生名單
+           資料層 (Data Layer)
            ==================================================================== */
         const AppState = {
-            classes: [], events: [], students: [], // 儲存來自 API 的真實名單
+            classes: [], events: [], students: [],
             
             addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
             removeClass: function(id) { this.classes = this.classes.filter(c => c.id !== id); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
@@ -386,9 +382,8 @@
         }
 
         /* ====================================================================
-           前台：矩陣式報名邏輯 (正式連線版)
+           前台：矩陣式報名邏輯
            ==================================================================== */
-        
         let currentMatrixState = {
             students: [], availableEvents: [], selections: {} 
         };
@@ -450,7 +445,6 @@
             const table = document.getElementById('regTable');
             let html = '';
 
-            // 表頭：男女獨立計數器
             html += `<thead><tr class="bg-slate-100 border-b-2 border-slate-200">
                 <th class="p-3 text-left w-32 whitespace-nowrap"><i class="fa-solid fa-users text-indigo-500 mr-2"></i>參賽選手</th>`;
             
@@ -466,10 +460,8 @@
             });
             html += `</tr></thead><tbody class="divide-y divide-slate-100">`;
 
-            // 表身：真實學生姓名加上性別顏色
             currentMatrixState.students.forEach(stu => {
                 const nameColor = stu.gender === 'M' ? 'text-blue-600' : 'text-pink-600';
-                
                 html += `<tr class="hover:bg-slate-50 transition-colors" id="row-${stu.num}">
                     <td class="p-3 font-bold border-r border-slate-100 whitespace-nowrap">
                         <span class="text-slate-400 mr-1 text-sm">${stu.num}</span> 
@@ -492,7 +484,6 @@
             });
         }
 
-        // 核心防呆邏輯
         function handleMatrixChange(e) {
             const cb = e.target;
             const stuNum = cb.dataset.stu;
@@ -505,7 +496,6 @@
         }
 
         function updateMatrixLocks() {
-            // 分別計算男女生的報名人數
             let eventCountsM = {}; let eventCountsF = {};
             currentMatrixState.availableEvents.forEach(ev => { eventCountsM[ev.id] = 0; eventCountsF[ev.id] = 0; });
             
@@ -521,7 +511,6 @@
             const allCbs = document.querySelectorAll('.matrix-cb');
             allCbs.forEach(cb => { cb.disabled = false; cb.parentElement.classList.remove('cell-locked'); });
 
-            // 處理學生個人上限 (每人最多2項)
             currentMatrixState.students.forEach(stu => {
                 const count = currentMatrixState.selections[stu.num].length;
                 document.querySelector(`#row-${stu.num} .stu-count-badge`).textContent = `已選: ${count}/2`;
@@ -535,12 +524,10 @@
                 }
             });
 
-            // 處理項目性別上限 (男女各最多5人)
             currentMatrixState.availableEvents.forEach(ev => {
                 const countM = eventCountsM[ev.id];
                 const badgeM = document.querySelector(`#header-${ev.id} .count-m`);
                 badgeM.textContent = countM >= 5 ? '男 滿額' : `男 ${countM}/5`;
-                
                 if(countM >= 5) {
                     badgeM.classList.replace('bg-blue-50', 'bg-red-100'); badgeM.classList.replace('text-blue-600', 'text-red-600');
                     document.querySelectorAll(`.matrix-cb[data-ev="${ev.id}"][data-gender="M"]:not(:checked)`).forEach(cb => {
@@ -553,7 +540,6 @@
                 const countF = eventCountsF[ev.id];
                 const badgeF = document.querySelector(`#header-${ev.id} .count-f`);
                 badgeF.textContent = countF >= 5 ? '女 滿額' : `女 ${countF}/5`;
-                
                 if(countF >= 5) {
                     badgeF.classList.replace('bg-pink-50', 'bg-red-100'); badgeF.classList.replace('text-pink-600', 'text-red-600');
                     document.querySelectorAll(`.matrix-cb[data-ev="${ev.id}"][data-gender="F"]:not(:checked)`).forEach(cb => {
@@ -565,8 +551,6 @@
             });
         }
 
-
-        // Step 1 -> Step 2 (修正2：收據改用 CSS Grid 強制一排5人)
         document.getElementById('goToStep2Btn').addEventListener('click', () => {
             let totalRegistrations = 0;
             Object.values(currentMatrixState.selections).forEach(arr => totalRegistrations += arr.length);
@@ -588,21 +572,20 @@
             currentMatrixState.availableEvents.forEach(ev => {
                 const enrolled = currentMatrixState.students.filter(stu => currentMatrixState.selections[stu.num].includes(ev.id));
                 if(enrolled.length > 0) {
-                    // 使用 div 取代原本的字串連接，準備放入 Grid 系統
                     const stuStrs = enrolled.map(s => `
-                        <div class="whitespace-nowrap text-left">
-                            <span class="text-slate-400 text-[11px] sm:text-xs mr-0.5">${s.num}</span><span class="${s.gender === 'M' ? 'text-blue-600' : 'text-pink-600'} font-bold text-[13px] sm:text-sm tracking-tight">${s.name}</span>
+                        <div class="text-center bg-white border border-slate-200 rounded py-1 px-0.5 shadow-sm overflow-hidden flex flex-col justify-center items-center">
+                            <span class="text-slate-400 text-[10px] leading-none mb-0.5">${s.num}</span>
+                            <span class="${s.gender === 'M' ? 'text-blue-600' : 'text-pink-600'} font-bold text-[11px] sm:text-[13px] tracking-tighter truncate w-full px-1">${s.name}</span>
                         </div>
                     `).join('');
                     
-                    // 改用 block 排版，並引入 grid-cols-5 強制一列 5 個
                     receiptContainer.innerHTML += `
-                        <div class="mb-5 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
-                            <div class="font-bold text-indigo-800 text-lg border-b border-indigo-200 pb-1 mb-3">
-                                <i class="${ev.icon} mr-2 text-indigo-500"></i>${ev.name} 
-                                <span class="text-xs text-slate-400 font-normal ml-2">共 ${enrolled.length} 人</span>
+                        <div class="mb-5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                            <div class="font-bold text-indigo-800 text-sm sm:text-base border-b border-indigo-200 pb-2 mb-3 flex items-center justify-between">
+                                <div><i class="${ev.icon} mr-2 text-indigo-500"></i>${ev.name}</div>
+                                <div class="text-xs text-slate-500 font-normal bg-white px-2 py-0.5 rounded-full border border-slate-200">共 ${enrolled.length} 人</div>
                             </div>
-                            <div class="grid grid-cols-5 gap-x-1 gap-y-2 text-slate-800">
+                            <div class="grid grid-cols-5 gap-1 sm:gap-2">
                                 ${stuStrs}
                             </div>
                         </div>
@@ -619,7 +602,6 @@
             document.getElementById('step1').classList.remove('hidden');
         });
 
-        // 截圖功能 
         document.getElementById('downloadImgBtn').addEventListener('click', () => {
             const btn = document.getElementById('downloadImgBtn');
             const originalHTML = btn.innerHTML;
@@ -638,21 +620,68 @@
             });
         });
 
-        // 模擬送出報名
+        // ★ 核心修改：正式打通資料寫入 API
         document.getElementById('registrationForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const btn = document.getElementById('finalSubmitBtn');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 處理中...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 報名資料寫入中...';
             btn.disabled = true;
-            setTimeout(() => {
-                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> 模擬送出報名';
+
+            // 整理要上傳的資料包
+            const classSelect = document.getElementById('classSelect');
+            const classId = classSelect.value;
+            const className = classSelect.options[classSelect.selectedIndex].textContent;
+            
+            let records = [];
+            currentMatrixState.students.forEach(stu => {
+                const selectedEvents = currentMatrixState.selections[stu.num];
+                selectedEvents.forEach(evId => {
+                    const ev = currentMatrixState.availableEvents.find(e => e.id === evId);
+                    records.push({
+                        num: stu.num,
+                        name: stu.name,
+                        gender: stu.gender,
+                        eventId: evId,
+                        eventName: ev.name
+                    });
+                });
+            });
+
+            // 發送真實 POST 請求
+            fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'submitRegistration',
+                    classId: classId,
+                    className: className,
+                    records: records
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    btn.innerHTML = '<i class="fa-solid fa-check"></i> 送出成功';
+                    showToast('報名資料已成功寫入雲端資料庫！', 'success');
+                    
+                    // 等待 2 秒後重置畫面
+                    setTimeout(() => {
+                        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> 確認並送出報名';
+                        btn.disabled = false;
+                        document.getElementById('registrationForm').reset();
+                        document.getElementById('classSelect').dispatchEvent(new Event('change'));
+                        document.getElementById('step2').classList.add('hidden');
+                        document.getElementById('step1').classList.remove('hidden');
+                    }, 2000);
+                } else {
+                    throw new Error('伺服器錯誤');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> 寫入失敗，請重試';
                 btn.disabled = false;
-                showToast('系統測試中，尚未連線寫入資料', 'success');
-                document.getElementById('registrationForm').reset();
-                document.getElementById('classSelect').dispatchEvent(new Event('change'));
-                document.getElementById('step2').classList.add('hidden');
-                document.getElementById('step1').classList.remove('hidden');
-            }, 1000);
+                showToast('連線失敗，請檢查網路或稍後重試', 'error');
+            });
         });
 
         /* ====================================================================
@@ -795,7 +824,6 @@
            系統初始化
            ==================================================================== */
         document.addEventListener('DOMContentLoaded', () => {
-            // 從 Google 試算表抓取最新資料
             fetch(`${API_URL}?action=getData`).then(res => res.json()).then(data => {
                 if(data.status === 'success') {
                     if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
@@ -808,7 +836,6 @@
             if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) { initGoogleSignIn(); } 
             else if (GOOGLE_CLIENT_ID) { window.onload = initGoogleSignIn; }
 
-            // 開發者模式檢測
             if (window.location.hostname.includes('usercontent.goog') || window.location.hostname === 'localhost' || window.location.hostname === '') {
                 const devBtn = document.getElementById('devBypassBtn');
                 if(devBtn) {
