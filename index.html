@@ -324,10 +324,10 @@
         const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
 
         /* ====================================================================
-           資料層 (Data Layer) - 【修改點】補上預設的 registrations: [] 空盒子
+           資料層 (Data Layer)
            ==================================================================== */
         const AppState = {
-            classes: [], events: [], students: [], registrations: [], // ★ 修正：預防當機的空盒子
+            classes: [], events: [], students: [], registrations: [],
             
             addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); },
             removeClass: function(id) { this.classes = this.classes.filter(c => String(c.id) !== String(id)); syncClassesToCloud(); renderAdminClasses(); },
@@ -399,15 +399,25 @@
             selections: {} 
         };
 
+        // 【終極修復】徹底解決密碼對不上的問題：不論欄位叫什麼，只要有值就抓出來核對
         document.getElementById('classLoginBtn').addEventListener('click', () => {
             const pwd = document.getElementById('classPwdInput').value.trim();
             if(!pwd) return showToast('請輸入班級密碼', 'error');
 
-            // 【修改點】加上 .trim() 避免後台輸入密碼時不小心多按了空白鍵導致比對失敗
-            const foundClass = AppState.classes.find(c => String(c.password).trim() === pwd && pwd !== '');
+            const foundClass = AppState.classes.find(c => {
+                let sheetPwd = '';
+                // 尋找所有的 key，只要轉小寫是 password 或叫做密碼，且有值的，就抓出來
+                for (let key in c) {
+                    if ((key.toLowerCase() === 'password' || key === '密碼') && c[key] !== '' && c[key] !== undefined && c[key] !== null) {
+                        sheetPwd = c[key];
+                        break;
+                    }
+                }
+                return String(sheetPwd).trim() === pwd && pwd !== '';
+            });
             
             if(!foundClass) {
-                return showToast('密碼錯誤，找不到對應的班級', 'error');
+                return showToast('密碼錯誤，請確認後重試', 'error');
             }
 
             const grade = parseInt(foundClass.grade);
@@ -429,7 +439,6 @@
             currentMatrixState.selections = {};
             currentMatrixState.students.forEach(s => currentMatrixState.selections[s.num] = []);
 
-            // 自動還原歷史紀錄魔法 (因為有了 registrations 空盒子，這裡絕對不會再當機了)
             const pastRegs = AppState.registrations.filter(r => String(r.classId) === String(foundClass.id));
             pastRegs.forEach(reg => {
                 if(currentMatrixState.selections[reg.num]) {
@@ -1008,12 +1017,12 @@
            系統初始化
            ==================================================================== */
         document.addEventListener('DOMContentLoaded', () => {
-            fetch(`${API_URL}?action=getData`).then(res => res.json()).then(data => {
+            const cacheBuster = new Date().getTime();
+            fetch(`${API_URL}?action=getData&_t=${cacheBuster}`).then(res => res.json()).then(data => {
                 if(data.status === 'success') {
                     if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
                     if(data.events && data.events.length > 0) AppState.events = data.events;
                     if(data.students && data.students.length > 0) AppState.students = data.students; 
-                    // ★ 接收後台傳來的歷史報名資料，若沒有就保持空盒子
                     if(data.registrations && data.registrations.length > 0) AppState.registrations = data.registrations;
                 }
             }).catch(err => console.log('載入雲端資料失敗', err));
