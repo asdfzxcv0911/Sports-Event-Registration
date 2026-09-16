@@ -117,16 +117,13 @@
 
                     </div>
 
-                    <!-- 步驟二：確認報名資料與截圖 -->
                     <div id="step2" class="hidden flex-col h-full min-h-0 w-full gap-2">
                         <div class="border-l-4 border-indigo-500 pl-4 py-1 flex-shrink-0">
                             <h3 class="text-xl font-bold text-slate-800">報名總表確認</h3>
-                            <p class="text-xs sm:text-sm text-slate-500">請核對下方名單，確認後即可送出 (可左右滑動查看)。</p>
+                            <p class="text-xs sm:text-sm text-slate-500">請核對下方名單，確認後即可送出 (手機版可左右滑動查看)。</p>
                         </div>
                         
-                        <!-- 報名單區塊：內部負責產生滾動條，不會撐開整個畫面 -->
                         <div class="overflow-auto flex-1 bg-slate-100 p-2 sm:p-4 rounded-xl w-full min-h-0 shadow-inner border border-slate-200">
-                            <!-- 強制 800px 統一截圖寬度 -->
                             <div id="receiptArea" class="bg-white p-6 sm:p-8 rounded-xl shadow-sm border border-slate-200 font-sans mx-auto w-[800px] max-w-none relative flex-shrink-0">
                                 <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none z-0">
                                     <i class="fa-solid fa-school text-9xl"></i>
@@ -155,7 +152,6 @@
                             </div>
                         </div>
                         
-                        <!-- 按鈕區塊：永遠釘在下方 -->
                         <div class="flex flex-row gap-2 pt-2 flex-shrink-0">
                             <button type="button" id="backToStep1Btn" class="w-1/4 bg-white border border-slate-300 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition-all text-xs sm:text-base flex justify-center items-center">
                                 <i class="fa-solid fa-arrow-left"></i> <span class="hidden sm:inline ml-1">返回</span>
@@ -177,7 +173,6 @@
             &copy; 2026 二苓國小. 系統維護：<span id="secretAdminTrigger" class="cursor-pointer hover:text-slate-500 transition-colors select-none">體育組</span>
         </div>
     </div>
-
 
     <!-- ==========================================
          [後台] 系統管理員介面 
@@ -321,8 +316,10 @@
     <script>
         /* ====================================================================
            系統設定區 
+           ★ 請在此貼上您最新的 API_URL 網址 ★
            ==================================================================== */
         const API_URL = "https://script.google.com/macros/s/AKfycbznUHAGrRxazLgVAiP-iQuW5-1ULDzrDgJt5Pql2VNvu7vpeTsC7EX3hR7wYjOgpfrJAQ/exec";
+        
         const GOOGLE_CLIENT_ID = "196046951115-43vvvc2c60hibgmcs3j1jh37f2e2e4sf.apps.googleusercontent.com";
         const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
 
@@ -330,12 +327,12 @@
            資料層 (Data Layer)
            ==================================================================== */
         const AppState = {
-            classes: [], events: [], students: [],
+            classes: [], events: [], students: [], registrations: [],
             
             addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); },
-            removeClass: function(id) { this.classes = this.classes.filter(c => String(c.id) !== String(id)); syncClassesToCloud(); renderAdminClasses(); },
+            removeClass: function(id) { this.classes = this.classes.filter(c => String(c.id).trim() !== String(id).trim()); syncClassesToCloud(); renderAdminClasses(); },
             addEvent: function(e) { this.events.push(e); syncEventsToCloud(); renderAdminEvents(); },
-            removeEvent: function(id) { this.events = this.events.filter(e => String(e.id) !== String(id)); syncEventsToCloud(); renderAdminEvents(); },
+            removeEvent: function(id) { this.events = this.events.filter(e => String(e.id).trim() !== String(id).trim()); syncEventsToCloud(); renderAdminEvents(); },
             moveItem: function(type, index, direction) {
                 const arr = this[type];
                 if (index + direction < 0 || index + direction >= arr.length) return;
@@ -344,7 +341,7 @@
                 else { syncEventsToCloud(); renderAdminEvents(); }
             },
             toggleEventAllow: function(eventId, grade) {
-                const ev = this.events.find(e => String(e.id) === String(eventId));
+                const ev = this.events.find(e => String(e.id).trim() === String(eventId).trim());
                 if(ev) {
                     const idx = ev.excludeGrades.indexOf(grade);
                     if(idx > -1) ev.excludeGrades.splice(idx, 1);
@@ -353,6 +350,21 @@
                 }
             }
         };
+
+        function getClassPwd(c) {
+            if (!c) return '';
+            if (c.password !== undefined && c.password !== null && String(c.password).trim() !== '') return String(c.password).trim();
+            if (c['密碼'] !== undefined && c['密碼'] !== null && String(c['密碼']).trim() !== '') return String(c['密碼']).trim();
+            if (c.Password !== undefined && c.Password !== null && String(c.Password).trim() !== '') return String(c.Password).trim();
+            if (c.PASSWORD !== undefined && c.PASSWORD !== null && String(c.PASSWORD).trim() !== '') return String(c.PASSWORD).trim();
+            
+            for (let key in c) {
+                if ((key.toLowerCase() === 'password' || key === '密碼') && c[key] !== null && c[key] !== undefined) {
+                    return String(c[key]).trim();
+                }
+            }
+            return '';
+        }
 
         /* ====================================================================
            全域 UI 工具 
@@ -406,10 +418,10 @@
             const pwd = document.getElementById('classPwdInput').value.trim();
             if(!pwd) return showToast('請輸入班級密碼', 'error');
 
-            const foundClass = AppState.classes.find(c => String(c.password) === String(pwd) && pwd !== '');
+            const foundClass = AppState.classes.find(c => getClassPwd(c) === pwd && pwd !== '');
             
             if(!foundClass) {
-                return showToast('密碼錯誤，找不到對應的班級', 'error');
+                return showToast('密碼錯誤，請確認後重試', 'error');
             }
 
             const grade = parseInt(foundClass.grade);
@@ -419,10 +431,10 @@
                 return showToast('此年級目前無開放報名項目', 'error'); 
             }
 
-            currentMatrixState.students = AppState.students.filter(s => String(s.classId) === String(foundClass.id));
+            currentMatrixState.students = AppState.students.filter(s => String(s.classId).trim() === String(foundClass.id).trim());
 
             if(currentMatrixState.students.length === 0) {
-                return showToast(`找不到「${foundClass.name}」的學生名單，請確認試算表設定`, 'error');
+                return showToast(`無法登入：在【學生名單】找不到代碼為 ${foundClass.id} 的學生`, 'error');
             }
 
             currentMatrixState.classId = foundClass.id;
@@ -431,16 +443,33 @@
             currentMatrixState.selections = {};
             currentMatrixState.students.forEach(s => currentMatrixState.selections[s.num] = []);
 
+            // ★ 終極比對魔法：把 01 跟 1 都轉成純數字來比對，絕對不會漏勾！
+            const pastRegs = AppState.registrations.filter(r => String(r.classId).trim() === String(foundClass.id).trim());
+            pastRegs.forEach(reg => {
+                let targetKey = Object.keys(currentMatrixState.selections).find(k => parseInt(k, 10) === parseInt(reg.num, 10));
+                if(targetKey) {
+                    if(validEvents.some(ev => String(ev.id).trim() === String(reg.eventId).trim())) {
+                        if (!currentMatrixState.selections[targetKey].includes(String(reg.eventId).trim())) {
+                            currentMatrixState.selections[targetKey].push(String(reg.eventId).trim());
+                        }
+                    }
+                }
+            });
+
             document.getElementById('dynamicFormTitle').innerHTML = `<i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【${foundClass.name}報名表】`;
             renderMatrixTable();
+            updateMatrixLocks(); 
             
-            // 【重要】切換時，處理 flexbox 屬性，確保排版不斷層
             document.getElementById('classLoginSection').classList.add('hidden');
             document.getElementById('classLoginSection').classList.remove('flex');
             document.getElementById('classRegSection').classList.remove('hidden');
             document.getElementById('classRegSection').classList.add('flex');
             
-            showToast(`登入成功！目前為：${foundClass.name}`, 'success');
+            if(pastRegs.length > 0) {
+                showToast(`登入成功！已為您還原先前的報名紀錄`, 'success');
+            } else {
+                showToast(`登入成功！目前為：${foundClass.name}`, 'success');
+            }
         });
 
         document.getElementById('classPwdInput').addEventListener('keypress', (e) => {
@@ -483,8 +512,9 @@
                     </td>`;
                 
                 currentMatrixState.availableEvents.forEach(ev => {
+                    const isChecked = currentMatrixState.selections[stu.num].includes(ev.id) ? 'checked' : '';
                     html += `<td class="p-3 text-center border-r border-slate-50 last:border-0" id="cell-${stu.num}-${ev.id}">
-                        <input type="checkbox" class="checkbox-custom matrix-cb" data-stu="${stu.num}" data-ev="${ev.id}" data-gender="${stu.gender}">
+                        <input type="checkbox" class="checkbox-custom matrix-cb" data-stu="${stu.num}" data-ev="${ev.id}" data-gender="${stu.gender}" ${isChecked}>
                     </td>`;
                 });
                 html += `</tr>`;
@@ -637,7 +667,6 @@
                 }
             });
 
-            // 【重要修復】解決 Step 2 因為缺少 flexbox 導致按鈕被擠出螢幕的 Bug
             document.getElementById('step1').classList.remove('flex');
             document.getElementById('step1').classList.add('hidden');
             
@@ -710,6 +739,11 @@
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> 送出成功';
                     showToast('報名資料已成功寫入雲端資料庫！', 'success');
                     
+                    AppState.registrations = AppState.registrations.filter(r => String(r.classId).trim() !== String(classId).trim());
+                    records.forEach(rec => {
+                        AppState.registrations.push({ classId: classId, num: rec.num, eventId: rec.eventId });
+                    });
+
                     setTimeout(() => {
                         btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> 確認並送出';
                         btn.disabled = false;
@@ -771,39 +805,6 @@
         
         window.confirmDeleteClass = function(id, name) { showConfirm(`確定要刪除「${name}」嗎？`, () => AppState.removeClass(id)); }
         
-        window.editClass = function(id) {
-            const c = AppState.classes.find(x => String(x.id) === String(id));
-            if(!c) return;
-            document.getElementById('newClassGrade').value = c.grade;
-            document.getElementById('newClassId').value = c.id;
-            document.getElementById('newClassId').disabled = true; 
-            document.getElementById('newClassName').value = c.name;
-            document.getElementById('newClassPassword').value = c.password || '';
-            
-            const btn = document.getElementById('addAdminClassBtn');
-            btn.textContent = '儲存修改';
-            btn.classList.replace('bg-indigo-600', 'bg-amber-500');
-            btn.classList.replace('hover:bg-indigo-700', 'hover:bg-amber-600');
-            document.getElementById('cancelEditClassBtn').classList.remove('hidden');
-            editingClassId = id;
-            showToast(`正在編輯班級：${c.name}`, 'info');
-        }
-
-        document.getElementById('cancelEditClassBtn').addEventListener('click', () => {
-            editingClassId = null;
-            document.getElementById('newClassId').disabled = false;
-            document.getElementById('newClassGrade').value = ''; 
-            document.getElementById('newClassId').value = ''; 
-            document.getElementById('newClassName').value = '';
-            document.getElementById('newClassPassword').value = '';
-            
-            const btn = document.getElementById('addAdminClassBtn');
-            btn.textContent = '新增';
-            btn.classList.replace('bg-amber-500', 'bg-indigo-600');
-            btn.classList.replace('hover:bg-amber-600', 'hover:bg-indigo-700');
-            document.getElementById('cancelEditClassBtn').classList.add('hidden');
-        });
-
         document.getElementById('addAdminClassBtn').addEventListener('click', () => {
             const grade = document.getElementById('newClassGrade').value; 
             const id = document.getElementById('newClassId').value; 
@@ -811,25 +812,12 @@
             const password = document.getElementById('newClassPassword').value;
             if(!grade || !id || !name) return showToast('請填寫完整', 'error');
 
-            if (editingClassId) {
-                const c = AppState.classes.find(x => String(x.id) === String(editingClassId));
-                if(c) {
-                    c.grade = parseInt(grade);
-                    c.name = name;
-                    c.password = password || '';
-                    syncClassesToCloud(); 
-                    renderAdminClasses(); 
-                    showToast('班級修改成功', 'success');
-                }
-                document.getElementById('cancelEditClassBtn').click();
-            } else {
-                if(AppState.classes.some(c => String(c.id) === String(id))) return showToast('代碼已存在', 'error');
-                AppState.addClass({ id, name, grade: parseInt(grade), password: password || '' });
-                document.getElementById('newClassGrade').value = ''; 
-                document.getElementById('newClassId').value = ''; 
-                document.getElementById('newClassName').value = '';
-                document.getElementById('newClassPassword').value = '';
-            }
+            if(AppState.classes.some(c => String(c.id).trim() === String(id).trim())) return showToast('代碼已存在', 'error');
+            AppState.addClass({ id, name, grade: parseInt(grade), password: password || '' });
+            document.getElementById('newClassGrade').value = ''; 
+            document.getElementById('newClassId').value = ''; 
+            document.getElementById('newClassName').value = '';
+            document.getElementById('newClassPassword').value = '';
         });
 
         document.querySelectorAll('#iconSelector .icon-btn').forEach(btn => {
@@ -857,7 +845,6 @@
                             <button onclick="AppState.moveItem('events', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
                             <button onclick="AppState.moveItem('events', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
                         </div>
-                        <button onclick="editEvent('${e.id}')" class="text-slate-400 hover:text-blue-500 p-2 transition-colors mr-1" title="編輯項目"><i class="fa-solid fa-pen"></i></button>
                         <button onclick="confirmDeleteEvent('${e.id}', '${e.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
                     </td>`;
                 tbody.appendChild(tr);
@@ -866,67 +853,16 @@
         
         window.confirmDeleteEvent = function(id, name) { showConfirm(`確定刪除「${name}」？`, () => AppState.removeEvent(id)); }
         
-        window.editEvent = function(id) {
-            const ev = AppState.events.find(x => String(x.id) === String(id));
-            if(!ev) return;
-            document.getElementById('newEventId').value = ev.id;
-            document.getElementById('newEventId').disabled = true;
-            document.getElementById('newEventName').value = ev.name;
-            document.getElementById('newEventIcon').value = ev.icon;
-            
-            document.querySelectorAll('#iconSelector .icon-btn').forEach(b => {
-                b.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
-                b.classList.add('border-transparent', 'text-slate-400');
-                if (b.dataset.icon === ev.icon) {
-                    b.classList.remove('border-transparent', 'text-slate-400');
-                    b.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
-                }
-            });
-            
-            const btn = document.getElementById('addAdminEventBtn');
-            btn.textContent = '儲存修改';
-            btn.classList.replace('bg-indigo-600', 'bg-amber-500');
-            btn.classList.replace('hover:bg-indigo-700', 'hover:bg-amber-600');
-            document.getElementById('cancelEditEventBtn').classList.remove('hidden');
-            editingEventId = id;
-            showToast(`正在編輯項目：${ev.name}`, 'info');
-        }
-
-        document.getElementById('cancelEditEventBtn').addEventListener('click', () => {
-            editingEventId = null;
-            document.getElementById('newEventId').disabled = false;
-            document.getElementById('newEventId').value = ''; 
-            document.getElementById('newEventName').value = '';
-            
-            const btn = document.getElementById('addAdminEventBtn');
-            btn.textContent = '新增';
-            btn.classList.replace('bg-amber-500', 'bg-indigo-600');
-            btn.classList.replace('hover:bg-amber-600', 'hover:bg-indigo-700');
-            document.getElementById('cancelEditEventBtn').classList.add('hidden');
-        });
-
         document.getElementById('addAdminEventBtn').addEventListener('click', () => {
             const id = document.getElementById('newEventId').value; 
             const name = document.getElementById('newEventName').value; 
             const icon = document.getElementById('newEventIcon').value;
             if(!id || !name || !icon) return showToast('請填寫完整', 'error');
             
-            if (editingEventId) {
-                const ev = AppState.events.find(x => String(x.id) === String(editingEventId));
-                if(ev) {
-                    ev.name = name;
-                    ev.icon = icon;
-                    syncEventsToCloud();
-                    renderAdminEvents();
-                    showToast('項目修改成功', 'success');
-                }
-                document.getElementById('cancelEditEventBtn').click(); 
-            } else {
-                if(AppState.events.some(e => String(e.id) === String(id))) return showToast('代碼已存在', 'error');
-                AppState.addEvent({ id, name, icon, excludeGrades: [] });
-                document.getElementById('newEventId').value = ''; 
-                document.getElementById('newEventName').value = '';
-            }
+            if(AppState.events.some(e => String(e.id).trim() === String(id).trim())) return showToast('代碼已存在', 'error');
+            AppState.addEvent({ id, name, icon, excludeGrades: [] });
+            document.getElementById('newEventId').value = ''; 
+            document.getElementById('newEventName').value = '';
         });
 
         window.switchAdminTab = function(tabName) {
@@ -998,23 +934,39 @@
            系統初始化
            ==================================================================== */
         document.addEventListener('DOMContentLoaded', () => {
-            fetch(`${API_URL}?action=getData`).then(res => res.json()).then(data => {
-                if(data.status === 'success') {
-                    if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
-                    if(data.events && data.events.length > 0) AppState.events = data.events;
-                    if(data.students && data.students.length > 0) AppState.students = data.students; 
-                    
-                    // 【解鎖按鈕】確定資料抓完後，把載入中變成可點擊的藍色按鈕
-                    const loginBtn = document.getElementById('classLoginBtn');
-                    loginBtn.disabled = false;
-                    loginBtn.textContent = '進入';
-                    loginBtn.classList.remove('bg-slate-400', 'cursor-not-allowed');
-                    loginBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+            const cacheBuster = new Date().getTime();
+            fetch(`${API_URL}?action=getData&_t=${cacheBuster}`)
+            .then(res => {
+                if(!res.ok) throw new Error('網路回應錯誤');
+                return res.text();
+            })
+            .then(text => {
+                try {
+                    const data = JSON.parse(text);
+                    if(data.status === 'success') {
+                        AppState.classes = data.classes || [];
+                        AppState.events = data.events || [];
+                        AppState.students = data.students || []; 
+                        AppState.registrations = data.registrations || [];
+                        
+                        const loginBtn = document.getElementById('classLoginBtn');
+                        loginBtn.disabled = false;
+                        loginBtn.textContent = '進入';
+                        loginBtn.classList.remove('bg-slate-400', 'cursor-not-allowed');
+                        loginBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700');
+                    } else {
+                        showToast('⚠️ 試算表資料讀取失敗，請確認內容格式', 'error');
+                    }
+                } catch(e) {
+                    console.error('解析失敗, 可能是網址錯誤或未授權:', text);
+                    showToast('⚠️ 嚴重斷線！請確認您的 API_URL 網址是否正確更新', 'error');
                 }
-            }).catch(err => {
-                console.log('載入雲端資料失敗', err);
+            })
+            .catch(err => {
+                console.error('連線失敗:', err);
                 const loginBtn = document.getElementById('classLoginBtn');
                 loginBtn.textContent = '連線失敗';
+                showToast('⚠️ 網路連線失敗，請重新整理網頁', 'error');
             });
 
             if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) { initGoogleSignIn(); } 
