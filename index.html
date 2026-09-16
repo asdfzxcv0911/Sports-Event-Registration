@@ -231,15 +231,15 @@
                         <h2 class="text-2xl font-bold text-slate-800">開放報名班級清單</h2>
                     </div>
                     
-                    <!-- 【第二階段修改】新增班級區塊加入「班級密碼」輸入框 -->
+                    <!-- 班級設定輸入區 (加入編輯取消按鈕) -->
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 flex flex-col sm:flex-row gap-3 items-end">
                         <div class="flex-1 w-full">
-                            <label class="block text-xs font-bold text-slate-500 mb-1">年級 (數字，如: 3)</label>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">年級 (如: 3)</label>
                             <input type="number" id="newClassGrade" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="年級">
                         </div>
                         <div class="flex-1 w-full">
                             <label class="block text-xs font-bold text-slate-500 mb-1">班級代碼 (如: 301)</label>
-                            <input type="text" id="newClassId" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="代碼">
+                            <input type="text" id="newClassId" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500 disabled:bg-slate-200 disabled:text-slate-400" placeholder="代碼">
                         </div>
                         <div class="flex-[1.5] w-full">
                             <label class="block text-xs font-bold text-slate-500 mb-1">顯示名稱 (如: 三年1班)</label>
@@ -249,7 +249,9 @@
                             <label class="block text-xs font-bold text-slate-500 mb-1">班級密碼</label>
                             <input type="text" id="newClassPassword" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="密碼">
                         </div>
-                        <button id="addAdminClassBtn" class="w-full sm:w-auto bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 h-[42px]">新增</button>
+                        <!-- 新增：取消與儲存按鈕 -->
+                        <button id="cancelEditClassBtn" class="hidden w-full sm:w-auto bg-slate-400 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-500 h-[42px]">取消</button>
+                        <button id="addAdminClassBtn" class="w-full sm:w-auto bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 h-[42px] transition-colors">新增</button>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -259,7 +261,7 @@
                                     <th class="p-3 font-bold">年級</th>
                                     <th class="p-3 font-bold">班級代碼</th>
                                     <th class="p-3 font-bold">顯示名稱</th>
-                                    <th class="p-3 font-bold">密碼</th> <!-- 新增密碼顯示欄位 -->
+                                    <th class="p-3 font-bold">密碼</th>
                                     <th class="p-3 font-bold text-right">操作與排序</th>
                                 </tr>
                             </thead>
@@ -276,7 +278,7 @@
                     <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 flex flex-col md:flex-row gap-3 items-end">
                         <div class="flex-[1] w-full">
                             <label class="block text-xs font-bold text-slate-500 mb-1">項目代碼</label>
-                            <input type="text" id="newEventId" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500" placeholder="如: 100m">
+                            <input type="text" id="newEventId" class="w-full border border-slate-300 rounded-lg p-2 outline-none focus:border-indigo-500 disabled:bg-slate-200 disabled:text-slate-400" placeholder="如: 100m">
                         </div>
                         <div class="flex-[1.5] w-full">
                             <label class="block text-xs font-bold text-slate-500 mb-1">項目名稱</label>
@@ -294,7 +296,9 @@
                             </div>
                             <input type="hidden" id="newEventIcon" value="fa-solid fa-person-running">
                         </div>
-                        <button id="addAdminEventBtn" class="w-full md:w-auto bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 h-[42px] mt-2 md:mt-0">新增</button>
+                        <!-- 新增：取消與儲存按鈕 -->
+                        <button id="cancelEditEventBtn" class="hidden w-full md:w-auto bg-slate-400 text-white font-bold py-2 px-4 rounded-lg hover:bg-slate-500 h-[42px] mt-2 md:mt-0">取消</button>
+                        <button id="addAdminEventBtn" class="w-full md:w-auto bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 h-[42px] mt-2 md:mt-0 transition-colors">新增</button>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -725,7 +729,12 @@
         function syncClassesToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveClasses', classes: AppState.classes }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('班級已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
         function syncEventsToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveEvents', events: AppState.events }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('項目已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
 
-        // 【第二階段修改】後台渲染班級表格時，加入密碼欄位顯示
+        // ==========================================
+        // 【新增功能】編輯班級與項目邏輯
+        // ==========================================
+        let editingClassId = null;
+        let editingEventId = null;
+
         function renderAdminClasses() {
             const tbody = document.getElementById('adminClassListTable'); tbody.innerHTML = '';
             AppState.classes.forEach((c, index) => {
@@ -741,26 +750,78 @@
                             <button onclick="AppState.moveItem('classes', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
                             <button onclick="AppState.moveItem('classes', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
                         </div>
-                        <button onclick="confirmDeleteClass('${c.id}', '${c.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+                        <!-- 新增：編輯按鈕 -->
+                        <button onclick="editClass('${c.id}')" class="text-slate-400 hover:text-blue-500 p-2 transition-colors mr-1" title="編輯班級"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="confirmDeleteClass('${c.id}', '${c.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
                     </td>`;
                 tbody.appendChild(tr);
             });
         }
+        
         window.confirmDeleteClass = function(id, name) { showConfirm(`確定要刪除「${name}」嗎？`, () => AppState.removeClass(id)); }
         
-        // 【第二階段修改】新增班級時抓取密碼欄位數值
+        window.editClass = function(id) {
+            const c = AppState.classes.find(x => x.id === id);
+            if(!c) return;
+            document.getElementById('newClassGrade').value = c.grade;
+            document.getElementById('newClassId').value = c.id;
+            document.getElementById('newClassId').disabled = true; // 禁止修改代碼
+            document.getElementById('newClassName').value = c.name;
+            document.getElementById('newClassPassword').value = c.password || '';
+            
+            const btn = document.getElementById('addAdminClassBtn');
+            btn.textContent = '儲存修改';
+            btn.classList.replace('bg-indigo-600', 'bg-amber-500');
+            btn.classList.replace('hover:bg-indigo-700', 'hover:bg-amber-600');
+            document.getElementById('cancelEditClassBtn').classList.remove('hidden');
+            editingClassId = id;
+            showToast(`正在編輯班級：${c.name}`, 'info');
+        }
+
+        document.getElementById('cancelEditClassBtn').addEventListener('click', () => {
+            editingClassId = null;
+            document.getElementById('newClassId').disabled = false;
+            document.getElementById('newClassGrade').value = ''; 
+            document.getElementById('newClassId').value = ''; 
+            document.getElementById('newClassName').value = '';
+            document.getElementById('newClassPassword').value = '';
+            
+            const btn = document.getElementById('addAdminClassBtn');
+            btn.textContent = '新增';
+            btn.classList.replace('bg-amber-500', 'bg-indigo-600');
+            btn.classList.replace('hover:bg-amber-600', 'hover:bg-indigo-700');
+            document.getElementById('cancelEditClassBtn').classList.add('hidden');
+        });
+
         document.getElementById('addAdminClassBtn').addEventListener('click', () => {
             const grade = document.getElementById('newClassGrade').value; 
             const id = document.getElementById('newClassId').value; 
             const name = document.getElementById('newClassName').value;
             const password = document.getElementById('newClassPassword').value;
             if(!grade || !id || !name) return showToast('請填寫完整', 'error');
-            if(AppState.classes.some(c => c.id === id)) return showToast('代碼已存在', 'error');
-            AppState.addClass({ id, name, grade: parseInt(grade), password: password || '' });
-            document.getElementById('newClassGrade').value = ''; 
-            document.getElementById('newClassId').value = ''; 
-            document.getElementById('newClassName').value = '';
-            document.getElementById('newClassPassword').value = '';
+
+            if (editingClassId) {
+                // 編輯模式
+                const c = AppState.classes.find(x => x.id === editingClassId);
+                if(c) {
+                    c.grade = parseInt(grade);
+                    c.name = name;
+                    c.password = password || '';
+                    syncClassesToCloud(); 
+                    renderAdminClasses(); 
+                    renderFrontendClasses();
+                    showToast('班級修改成功', 'success');
+                }
+                document.getElementById('cancelEditClassBtn').click(); // 重置按鈕狀態
+            } else {
+                // 新增模式
+                if(AppState.classes.some(c => c.id === id)) return showToast('代碼已存在', 'error');
+                AppState.addClass({ id, name, grade: parseInt(grade), password: password || '' });
+                document.getElementById('newClassGrade').value = ''; 
+                document.getElementById('newClassId').value = ''; 
+                document.getElementById('newClassName').value = '';
+                document.getElementById('newClassPassword').value = '';
+            }
         });
 
         document.querySelectorAll('#iconSelector .icon-btn').forEach(btn => {
@@ -788,18 +849,77 @@
                             <button onclick="AppState.moveItem('events', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
                             <button onclick="AppState.moveItem('events', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
                         </div>
-                        <button onclick="confirmDeleteEvent('${e.id}', '${e.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+                        <!-- 新增：編輯按鈕 -->
+                        <button onclick="editEvent('${e.id}')" class="text-slate-400 hover:text-blue-500 p-2 transition-colors mr-1" title="編輯項目"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="confirmDeleteEvent('${e.id}', '${e.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
                     </td>`;
                 tbody.appendChild(tr);
             });
         }
+        
         window.confirmDeleteEvent = function(id, name) { showConfirm(`確定刪除「${name}」？`, () => AppState.removeEvent(id)); }
+        
+        window.editEvent = function(id) {
+            const ev = AppState.events.find(x => x.id === id);
+            if(!ev) return;
+            document.getElementById('newEventId').value = ev.id;
+            document.getElementById('newEventId').disabled = true;
+            document.getElementById('newEventName').value = ev.name;
+            document.getElementById('newEventIcon').value = ev.icon;
+            
+            document.querySelectorAll('#iconSelector .icon-btn').forEach(b => {
+                b.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+                b.classList.add('border-transparent', 'text-slate-400');
+                if (b.dataset.icon === ev.icon) {
+                    b.classList.remove('border-transparent', 'text-slate-400');
+                    b.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+                }
+            });
+            
+            const btn = document.getElementById('addAdminEventBtn');
+            btn.textContent = '儲存修改';
+            btn.classList.replace('bg-indigo-600', 'bg-amber-500');
+            btn.classList.replace('hover:bg-indigo-700', 'hover:bg-amber-600');
+            document.getElementById('cancelEditEventBtn').classList.remove('hidden');
+            editingEventId = id;
+            showToast(`正在編輯項目：${ev.name}`, 'info');
+        }
+
+        document.getElementById('cancelEditEventBtn').addEventListener('click', () => {
+            editingEventId = null;
+            document.getElementById('newEventId').disabled = false;
+            document.getElementById('newEventId').value = ''; 
+            document.getElementById('newEventName').value = '';
+            
+            const btn = document.getElementById('addAdminEventBtn');
+            btn.textContent = '新增';
+            btn.classList.replace('bg-amber-500', 'bg-indigo-600');
+            btn.classList.replace('hover:bg-amber-600', 'hover:bg-indigo-700');
+            document.getElementById('cancelEditEventBtn').classList.add('hidden');
+        });
+
         document.getElementById('addAdminEventBtn').addEventListener('click', () => {
-            const id = document.getElementById('newEventId').value; const name = document.getElementById('newEventName').value; const icon = document.getElementById('newEventIcon').value;
+            const id = document.getElementById('newEventId').value; 
+            const name = document.getElementById('newEventName').value; 
+            const icon = document.getElementById('newEventIcon').value;
             if(!id || !name || !icon) return showToast('請填寫完整', 'error');
-            if(AppState.events.some(e => e.id === id)) return showToast('代碼已存在', 'error');
-            AppState.addEvent({ id, name, icon, excludeGrades: [] });
-            document.getElementById('newEventId').value = ''; document.getElementById('newEventName').value = '';
+            
+            if (editingEventId) {
+                const ev = AppState.events.find(x => x.id === editingEventId);
+                if(ev) {
+                    ev.name = name;
+                    ev.icon = icon;
+                    syncEventsToCloud();
+                    renderAdminEvents();
+                    showToast('項目修改成功', 'success');
+                }
+                document.getElementById('cancelEditEventBtn').click(); // 重置按鈕狀態
+            } else {
+                if(AppState.events.some(e => e.id === id)) return showToast('代碼已存在', 'error');
+                AppState.addEvent({ id, name, icon, excludeGrades: [] });
+                document.getElementById('newEventId').value = ''; 
+                document.getElementById('newEventName').value = '';
+            }
         });
 
         window.switchAdminTab = function(tabName) {
