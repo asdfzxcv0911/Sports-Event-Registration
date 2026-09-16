@@ -91,7 +91,6 @@
                             
                             <div class="flex flex-row w-full max-w-[280px] sm:max-w-sm gap-2 justify-center mx-auto items-stretch">
                                 <input type="password" id="classPwdInput" inputmode="numeric" pattern="[0-9]*" class="w-2/3 border-2 border-slate-300 rounded-xl p-3 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-center font-bold tracking-widest text-xl shadow-inner min-w-0" placeholder="輸入密碼">
-                                <!-- 【修改點1】：初始狀態設定為載入中，並鎖定按鈕避免使用者手速太快 -->
                                 <button type="button" id="classLoginBtn" disabled class="w-1/3 bg-slate-400 text-white font-bold py-3 px-2 rounded-xl shadow-md transition-all flex-shrink-0 cursor-not-allowed">載入中</button>
                             </div>
                         </div>
@@ -118,16 +117,16 @@
 
                     </div>
 
-                    <!-- 【修改點2 & 3】強制鎖定寬度 800px 確保截圖統一，並修正手機版按鈕被擠出的問題 -->
+                    <!-- 步驟二：確認報名資料與截圖 -->
                     <div id="step2" class="hidden flex-col h-full min-h-0 w-full gap-2">
                         <div class="border-l-4 border-indigo-500 pl-4 py-1 flex-shrink-0">
                             <h3 class="text-xl font-bold text-slate-800">報名總表確認</h3>
-                            <p class="text-xs sm:text-sm text-slate-500">請核對下方名單，確認後即可送出 (手機版可左右滑動查看)。</p>
+                            <p class="text-xs sm:text-sm text-slate-500">請核對下方名單，確認後即可送出 (可左右滑動查看)。</p>
                         </div>
                         
-                        <!-- 加入 min-h-0 確保此區塊能在內部產生捲軸，不會撐爆父容器 -->
+                        <!-- 報名單區塊：內部負責產生滾動條，不會撐開整個畫面 -->
                         <div class="overflow-auto flex-1 bg-slate-100 p-2 sm:p-4 rounded-xl w-full min-h-0 shadow-inner border border-slate-200">
-                            <!-- 強制設定 w-[800px] max-w-none 保證比例與電腦版完全相同 -->
+                            <!-- 強制 800px 統一截圖寬度 -->
                             <div id="receiptArea" class="bg-white p-6 sm:p-8 rounded-xl shadow-sm border border-slate-200 font-sans mx-auto w-[800px] max-w-none relative flex-shrink-0">
                                 <div class="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none z-0">
                                     <i class="fa-solid fa-school text-9xl"></i>
@@ -156,7 +155,7 @@
                             </div>
                         </div>
                         
-                        <!-- 按鈕區塊使用 flex-row 確保在手機上也是並排，不會被推到畫面外 -->
+                        <!-- 按鈕區塊：永遠釘在下方 -->
                         <div class="flex flex-row gap-2 pt-2 flex-shrink-0">
                             <button type="button" id="backToStep1Btn" class="w-1/4 bg-white border border-slate-300 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition-all text-xs sm:text-base flex justify-center items-center">
                                 <i class="fa-solid fa-arrow-left"></i> <span class="hidden sm:inline ml-1">返回</span>
@@ -435,6 +434,7 @@
             document.getElementById('dynamicFormTitle').innerHTML = `<i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【${foundClass.name}報名表】`;
             renderMatrixTable();
             
+            // 【重要】切換時，處理 flexbox 屬性，確保排版不斷層
             document.getElementById('classLoginSection').classList.add('hidden');
             document.getElementById('classLoginSection').classList.remove('flex');
             document.getElementById('classRegSection').classList.remove('hidden');
@@ -446,7 +446,11 @@
         document.getElementById('classPwdInput').addEventListener('keypress', (e) => {
             if(e.key === 'Enter') {
                 e.preventDefault();
-                document.getElementById('classLoginBtn').click();
+                if (!document.getElementById('classLoginBtn').disabled) {
+                    document.getElementById('classLoginBtn').click();
+                } else {
+                    showToast('系統載入中，請稍等...', 'info');
+                }
             }
         });
 
@@ -633,13 +637,20 @@
                 }
             });
 
+            // 【重要修復】解決 Step 2 因為缺少 flexbox 導致按鈕被擠出螢幕的 Bug
+            document.getElementById('step1').classList.remove('flex');
             document.getElementById('step1').classList.add('hidden');
+            
             document.getElementById('step2').classList.remove('hidden');
+            document.getElementById('step2').classList.add('flex');
         });
 
         document.getElementById('backToStep1Btn').addEventListener('click', () => {
+            document.getElementById('step2').classList.remove('flex');
             document.getElementById('step2').classList.add('hidden');
+            
             document.getElementById('step1').classList.remove('hidden');
+            document.getElementById('step1').classList.add('flex');
         });
 
         document.getElementById('downloadImgBtn').addEventListener('click', () => {
@@ -712,8 +723,11 @@
                         document.getElementById('classLoginSection').classList.remove('hidden');
                         document.getElementById('classLoginSection').classList.add('flex');
                         
+                        document.getElementById('step2').classList.remove('flex');
                         document.getElementById('step2').classList.add('hidden');
+                        
                         document.getElementById('step1').classList.remove('hidden');
+                        document.getElementById('step1').classList.add('flex');
                     }, 2000);
                 } else {
                     throw new Error('伺服器錯誤');
@@ -990,7 +1004,7 @@
                     if(data.events && data.events.length > 0) AppState.events = data.events;
                     if(data.students && data.students.length > 0) AppState.students = data.students; 
                     
-                    // 【解鎖登入按鈕】資料載入完成，將按鈕從「載入中」變更為可點擊的「進入」
+                    // 【解鎖按鈕】確定資料抓完後，把載入中變成可點擊的藍色按鈕
                     const loginBtn = document.getElementById('classLoginBtn');
                     loginBtn.disabled = false;
                     loginBtn.textContent = '進入';
@@ -999,7 +1013,6 @@
                 }
             }).catch(err => {
                 console.log('載入雲端資料失敗', err);
-                // 防呆：如果連線失敗，直接在按鈕上顯示錯誤
                 const loginBtn = document.getElementById('classLoginBtn');
                 loginBtn.textContent = '連線失敗';
             });
