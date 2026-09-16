@@ -64,7 +64,11 @@
                     <div class="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold tracking-widest mb-4">
                         ANNUAL SPORTS DAY
                     </div>
-                    <h1 class="text-3xl md:text-4xl font-extrabold mb-4 tracking-wider leading-tight">二苓國小運動會<br><span class="text-yellow-400">總表報名</span></h1>
+                    <!-- 修正1：標題強制分兩行顯示 -->
+                    <h1 class="text-3xl md:text-4xl font-extrabold mb-4 tracking-wider leading-tight">
+                        <div class="block">二苓國小運動會</div>
+                        <div class="block text-yellow-400 mt-1 md:mt-2">報名表</div>
+                    </h1>
                     <p class="text-blue-100 leading-relaxed text-sm backdrop-blur-sm bg-black/10 p-4 rounded-xl border border-white/10 hidden md:block">
                         <i class="fa-solid fa-circle-info mb-2 text-lg"></i><br>
                         1. 每位學生至多參加 2 項。<br>
@@ -136,7 +140,7 @@
                                         <p class="text-xs text-slate-400 mt-2">系統產出時間：<span id="receiptTime"></span></p>
                                     </div>
                                     
-                                    <div id="receiptContent" class="space-y-5 text-slate-700">
+                                    <div id="receiptContent" class="space-y-6 text-slate-700">
                                         <!-- JS 動態生成 -->
                                     </div>
                                     
@@ -421,7 +425,6 @@
                 return;
             }
 
-            // 【核心變更】使用從 API 抓回來的 AppState.students，而非假名單
             const selectedClassId = e.target.value;
             currentMatrixState.students = AppState.students.filter(s => s.classId === selectedClassId);
 
@@ -563,7 +566,7 @@
         }
 
 
-        // Step 1 -> Step 2
+        // Step 1 -> Step 2 (修正2：收據改用 CSS Grid 強制一排5人)
         document.getElementById('goToStep2Btn').addEventListener('click', () => {
             let totalRegistrations = 0;
             Object.values(currentMatrixState.selections).forEach(arr => totalRegistrations += arr.length);
@@ -585,11 +588,23 @@
             currentMatrixState.availableEvents.forEach(ev => {
                 const enrolled = currentMatrixState.students.filter(stu => currentMatrixState.selections[stu.num].includes(ev.id));
                 if(enrolled.length > 0) {
-                    const stuStrs = enrolled.map(s => `${s.num}號 <span class="${s.gender === 'M' ? 'text-blue-600 font-bold' : 'text-pink-600 font-bold'}">${s.name}</span>`).join('、');
+                    // 使用 div 取代原本的字串連接，準備放入 Grid 系統
+                    const stuStrs = enrolled.map(s => `
+                        <div class="whitespace-nowrap text-left">
+                            <span class="text-slate-400 text-[11px] sm:text-xs mr-0.5">${s.num}</span><span class="${s.gender === 'M' ? 'text-blue-600' : 'text-pink-600'} font-bold text-[13px] sm:text-sm tracking-tight">${s.name}</span>
+                        </div>
+                    `).join('');
+                    
+                    // 改用 block 排版，並引入 grid-cols-5 強制一列 5 個
                     receiptContainer.innerHTML += `
-                        <div class="flex items-start">
-                            <div class="font-bold text-indigo-700 w-32 flex-shrink-0"><i class="${ev.icon} mr-2"></i>${ev.name}</div>
-                            <div class="flex-1 text-slate-800">${stuStrs}</div>
+                        <div class="mb-5 bg-slate-50/50 p-3 rounded-lg border border-slate-100">
+                            <div class="font-bold text-indigo-800 text-lg border-b border-indigo-200 pb-1 mb-3">
+                                <i class="${ev.icon} mr-2 text-indigo-500"></i>${ev.name} 
+                                <span class="text-xs text-slate-400 font-normal ml-2">共 ${enrolled.length} 人</span>
+                            </div>
+                            <div class="grid grid-cols-5 gap-x-1 gap-y-2 text-slate-800">
+                                ${stuStrs}
+                            </div>
                         </div>
                     `;
                 }
@@ -780,11 +795,12 @@
            系統初始化
            ==================================================================== */
         document.addEventListener('DOMContentLoaded', () => {
+            // 從 Google 試算表抓取最新資料
             fetch(`${API_URL}?action=getData`).then(res => res.json()).then(data => {
                 if(data.status === 'success') {
                     if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
                     if(data.events && data.events.length > 0) AppState.events = data.events;
-                    if(data.students && data.students.length > 0) AppState.students = data.students; // 存入真實學生名單
+                    if(data.students && data.students.length > 0) AppState.students = data.students; 
                     renderFrontendClasses();
                 }
             }).catch(err => console.log('載入雲端資料失敗', err));
@@ -792,7 +808,7 @@
             if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) { initGoogleSignIn(); } 
             else if (GOOGLE_CLIENT_ID) { window.onload = initGoogleSignIn; }
 
-            // 恢復：開發者模式檢測 (在沙盒或本機環境中，自動顯示測試按鈕)
+            // 開發者模式檢測
             if (window.location.hostname.includes('usercontent.goog') || window.location.hostname === 'localhost' || window.location.hostname === '') {
                 const devBtn = document.getElementById('devBypassBtn');
                 if(devBtn) {
