@@ -91,8 +91,8 @@
                         <div id="matrixContainer" class="flex-1 min-h-[300px] bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden hidden flex-col">
                             <div class="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center flex-shrink-0">
                                 <h3 class="font-bold text-indigo-800"><i class="fa-solid fa-table-list mr-2"></i>全班報名點餐單</h3>
-                                <div class="text-xs font-bold text-indigo-500 bg-white px-2 py-1 rounded shadow-sm">
-                                    樣品屋模式：展示性別分流
+                                <div class="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-1 rounded shadow-sm">
+                                    <i class="fa-solid fa-link"></i> 已連線真實名單
                                 </div>
                             </div>
                             
@@ -188,6 +188,11 @@
             
             <div id="googleSignInBtn" class="flex justify-center mb-4"></div>
             <p id="googleAuthWarning" class="text-xs text-red-500 font-bold mt-2">請設定您的 Google Client ID 才能啟用登入功能。</p>
+
+            <!-- 開發測試按鈕 -->
+            <button id="devBypassBtn" type="button" class="hidden mt-4 w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-lg shadow-sm transition-colors text-sm flex justify-center items-center gap-2">
+                <i class="fa-solid fa-wrench"></i> [測試專用] 繞過驗證直接進入
+            </button>
 
             <button id="backToFrontBtn1" class="mt-6 text-sm text-slate-400 hover:text-slate-600 underline">返回報名系統</button>
         </div>
@@ -312,10 +317,10 @@
         const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
 
         /* ====================================================================
-           資料層 (Data Layer) 與 假名單產生器 (加入性別)
+           資料層 (Data Layer) - 導入真實學生名單
            ==================================================================== */
         const AppState = {
-            classes: [], events: [],
+            classes: [], events: [], students: [], // 儲存來自 API 的真實名單
             
             addClass: function(c) { this.classes.push(c); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
             removeClass: function(id) { this.classes = this.classes.filter(c => c.id !== id); syncClassesToCloud(); renderAdminClasses(); renderFrontendClasses(); },
@@ -338,25 +343,6 @@
                 }
             }
         };
-
-        // 隨機產生假學生的工具 (加入男女生判斷)
-        function getMockStudentsForClass(className) {
-            const mockData = [
-                { name: "陳大頭", gender: "M" }, { name: "王小明", gender: "M" }, { name: "林小美", gender: "F" },
-                { name: "張小強", gender: "M" }, { name: "李阿花", gender: "F" }, { name: "吳聰明", gender: "M" },
-                { name: "劉美麗", gender: "F" }, { name: "黃大山", gender: "M" }, { name: "周小弟", gender: "M" },
-                { name: "楊大姐", gender: "F" }, { name: "郭小豪", gender: "M" }, { name: "趙芷若", gender: "F" }
-            ];
-            let students = [];
-            for(let i=1; i<=12; i++) {
-                students.push({ 
-                    num: i.toString().padStart(2, '0'), 
-                    name: mockData[i-1].name, 
-                    gender: mockData[i-1].gender 
-                });
-            }
-            return students;
-        }
 
         /* ====================================================================
            全域 UI 工具 
@@ -396,7 +382,7 @@
         }
 
         /* ====================================================================
-           前台：矩陣式報名邏輯 (男女分流升級版)
+           前台：矩陣式報名邏輯 (正式連線版)
            ==================================================================== */
         
         let currentMatrixState = {
@@ -428,11 +414,25 @@
             const validEvents = AppState.events.filter(ev => !ev.excludeGrades.includes(grade));
             
             if(validEvents.length === 0) {
-                showToast('此年級目前無開放報名項目', 'error'); return;
+                showToast('此年級目前無開放報名項目', 'error'); 
+                selectContainer.classList.add('hidden'); selectContainer.classList.remove('flex');
+                prompt.classList.remove('hidden'); prompt.classList.add('flex');
+                btn.disabled = true;
+                return;
             }
 
-            const className = e.target.options[e.target.selectedIndex].textContent;
-            currentMatrixState.students = getMockStudentsForClass(className);
+            // 【核心變更】使用從 API 抓回來的 AppState.students，而非假名單
+            const selectedClassId = e.target.value;
+            currentMatrixState.students = AppState.students.filter(s => s.classId === selectedClassId);
+
+            if(currentMatrixState.students.length === 0) {
+                showToast('找不到此班級的學生名單，請確認試算表設定', 'error');
+                selectContainer.classList.add('hidden'); selectContainer.classList.remove('flex');
+                prompt.classList.remove('hidden'); prompt.classList.add('flex');
+                btn.disabled = true;
+                return;
+            }
+
             currentMatrixState.availableEvents = validEvents;
             currentMatrixState.selections = {};
             currentMatrixState.students.forEach(s => currentMatrixState.selections[s.num] = []);
@@ -447,7 +447,7 @@
             const table = document.getElementById('regTable');
             let html = '';
 
-            // 表頭：增加男女獨立計數器
+            // 表頭：男女獨立計數器
             html += `<thead><tr class="bg-slate-100 border-b-2 border-slate-200">
                 <th class="p-3 text-left w-32 whitespace-nowrap"><i class="fa-solid fa-users text-indigo-500 mr-2"></i>參賽選手</th>`;
             
@@ -463,7 +463,7 @@
             });
             html += `</tr></thead><tbody class="divide-y divide-slate-100">`;
 
-            // 表身：學生姓名加上性別顏色
+            // 表身：真實學生姓名加上性別顏色
             currentMatrixState.students.forEach(stu => {
                 const nameColor = stu.gender === 'M' ? 'text-blue-600' : 'text-pink-600';
                 
@@ -475,7 +475,6 @@
                     </td>`;
                 
                 currentMatrixState.availableEvents.forEach(ev => {
-                    // Checkbox 帶上性別屬性，方便判斷防呆
                     html += `<td class="p-3 text-center border-r border-slate-50 last:border-0" id="cell-${stu.num}-${ev.id}">
                         <input type="checkbox" class="checkbox-custom matrix-cb" data-stu="${stu.num}" data-ev="${ev.id}" data-gender="${stu.gender}">
                     </td>`;
@@ -490,7 +489,7 @@
             });
         }
 
-        // 核心防呆邏輯 (升級男女分開計算)
+        // 核心防呆邏輯
         function handleMatrixChange(e) {
             const cb = e.target;
             const stuNum = cb.dataset.stu;
@@ -503,7 +502,7 @@
         }
 
         function updateMatrixLocks() {
-            // 1. 分別計算男女生的報名人數
+            // 分別計算男女生的報名人數
             let eventCountsM = {}; let eventCountsF = {};
             currentMatrixState.availableEvents.forEach(ev => { eventCountsM[ev.id] = 0; eventCountsF[ev.id] = 0; });
             
@@ -519,7 +518,7 @@
             const allCbs = document.querySelectorAll('.matrix-cb');
             allCbs.forEach(cb => { cb.disabled = false; cb.parentElement.classList.remove('cell-locked'); });
 
-            // 2. 處理學生個人上限 (每人最多2項)
+            // 處理學生個人上限 (每人最多2項)
             currentMatrixState.students.forEach(stu => {
                 const count = currentMatrixState.selections[stu.num].length;
                 document.querySelector(`#row-${stu.num} .stu-count-badge`).textContent = `已選: ${count}/2`;
@@ -533,7 +532,7 @@
                 }
             });
 
-            // 3. 處理項目性別上限 (男女各最多5人)
+            // 處理項目性別上限 (男女各最多5人)
             currentMatrixState.availableEvents.forEach(ev => {
                 const countM = eventCountsM[ev.id];
                 const badgeM = document.querySelector(`#header-${ev.id} .count-m`);
@@ -541,7 +540,6 @@
                 
                 if(countM >= 5) {
                     badgeM.classList.replace('bg-blue-50', 'bg-red-100'); badgeM.classList.replace('text-blue-600', 'text-red-600');
-                    // 只鎖定「男生」且「沒打勾」的格子
                     document.querySelectorAll(`.matrix-cb[data-ev="${ev.id}"][data-gender="M"]:not(:checked)`).forEach(cb => {
                         if(!cb.disabled) { cb.disabled = true; cb.parentElement.classList.add('cell-locked'); }
                     });
@@ -555,7 +553,6 @@
                 
                 if(countF >= 5) {
                     badgeF.classList.replace('bg-pink-50', 'bg-red-100'); badgeF.classList.replace('text-pink-600', 'text-red-600');
-                    // 只鎖定「女生」且「沒打勾」的格子
                     document.querySelectorAll(`.matrix-cb[data-ev="${ev.id}"][data-gender="F"]:not(:checked)`).forEach(cb => {
                         if(!cb.disabled) { cb.disabled = true; cb.parentElement.classList.add('cell-locked'); }
                     });
@@ -588,7 +585,6 @@
             currentMatrixState.availableEvents.forEach(ev => {
                 const enrolled = currentMatrixState.students.filter(stu => currentMatrixState.selections[stu.num].includes(ev.id));
                 if(enrolled.length > 0) {
-                    // 名字帶上性別顏色
                     const stuStrs = enrolled.map(s => `${s.num}號 <span class="${s.gender === 'M' ? 'text-blue-600 font-bold' : 'text-pink-600 font-bold'}">${s.name}</span>`).join('、');
                     receiptContainer.innerHTML += `
                         <div class="flex items-start">
@@ -636,7 +632,7 @@
             setTimeout(() => {
                 btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> 模擬送出報名';
                 btn.disabled = false;
-                showToast('【樣品屋模式】報名成功！(無實際上傳)', 'success');
+                showToast('系統測試中，尚未連線寫入資料', 'success');
                 document.getElementById('registrationForm').reset();
                 document.getElementById('classSelect').dispatchEvent(new Event('change'));
                 document.getElementById('step2').classList.add('hidden');
@@ -788,12 +784,32 @@
                 if(data.status === 'success') {
                     if(data.classes && data.classes.length > 0) AppState.classes = data.classes;
                     if(data.events && data.events.length > 0) AppState.events = data.events;
+                    if(data.students && data.students.length > 0) AppState.students = data.students; // 存入真實學生名單
                     renderFrontendClasses();
                 }
             }).catch(err => console.log('載入雲端資料失敗', err));
 
             if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) { initGoogleSignIn(); } 
             else if (GOOGLE_CLIENT_ID) { window.onload = initGoogleSignIn; }
+
+            // 恢復：開發者模式檢測 (在沙盒或本機環境中，自動顯示測試按鈕)
+            if (window.location.hostname.includes('usercontent.goog') || window.location.hostname === 'localhost' || window.location.hostname === '') {
+                const devBtn = document.getElementById('devBypassBtn');
+                if(devBtn) {
+                    devBtn.classList.remove('hidden');
+                    devBtn.addEventListener('click', () => {
+                        showToast('已啟用開發者通道，跳過登入驗證', 'info');
+                        document.getElementById('adminUserEmail').innerHTML = `<i class="fa-solid fa-user-circle"></i> 開發測試者`;
+                        document.getElementById('viewAdminAuth').classList.add('opacity-0');
+                        setTimeout(() => {
+                            document.getElementById('viewAdminAuth').classList.add('hidden');
+                            const dash = document.getElementById('viewAdminDashboard');
+                            dash.classList.remove('hidden'); setTimeout(() => dash.classList.remove('opacity-0'), 10);
+                            renderAdminClasses(); renderAdminEvents();
+                        }, 500);
+                    });
+                }
+            }
 
             const bgCanvas = document.getElementById('bgCanvas'); const bgCtx = bgCanvas.getContext('2d'); let lines = [];
             function resizeBgCanvas() { bgCanvas.width = bgCanvas.parentElement.clientWidth; bgCanvas.height = bgCanvas.parentElement.clientHeight; }
