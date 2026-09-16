@@ -64,10 +64,11 @@
                     <div class="inline-block px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-xs font-semibold tracking-widest mb-4">
                         ANNUAL SPORTS DAY
                     </div>
-                    <div class="flex flex-col mb-4 gap-2">
-                        <div class="text-3xl md:text-4xl font-extrabold tracking-wider leading-tight">二苓國小運動會</div>
-                        <div class="text-3xl md:text-4xl font-extrabold tracking-wider leading-tight text-yellow-400">報名表</div>
-                    </div>
+                    
+                    <h1 class="text-3xl md:text-4xl font-extrabold mb-4 tracking-wider leading-tight">
+                        二苓國小運動會 <span class="text-yellow-400">報名表</span>
+                    </h1>
+
                     <p class="text-blue-100 leading-relaxed text-sm backdrop-blur-sm bg-black/10 p-4 rounded-xl border border-white/10 hidden md:block">
                         <i class="fa-solid fa-circle-info mb-2 text-lg"></i><br>
                         1. 每位學生至多參加 2 項。<br>
@@ -138,6 +139,7 @@
                                     </div>
                                     
                                     <div id="receiptContent" class="space-y-5 text-slate-700">
+                                        <!-- JS 動態生成 -->
                                     </div>
                                     
                                     <div class="mt-8 pt-4 border-t border-slate-200 flex justify-between items-end">
@@ -159,7 +161,6 @@
                             <button type="button" id="downloadImgBtn" class="sm:w-1/4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
                                 <i class="fa-solid fa-camera"></i> 下載圖片
                             </button>
-                            <!-- 【按鈕解鎖】已正式連線真實伺服器 -->
                             <button type="submit" id="finalSubmitBtn" class="sm:w-2/4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2">
                                 <i class="fa-solid fa-cloud-arrow-up"></i> 確認並送出報名
                             </button>
@@ -551,6 +552,9 @@
             });
         }
 
+        // ====================================================================
+        // 【修改點】修復 html2canvas 下載截圖時，名字下半部被切掉的問題
+        // ====================================================================
         document.getElementById('goToStep2Btn').addEventListener('click', () => {
             let totalRegistrations = 0;
             Object.values(currentMatrixState.selections).forEach(arr => totalRegistrations += arr.length);
@@ -572,12 +576,35 @@
             currentMatrixState.availableEvents.forEach(ev => {
                 const enrolled = currentMatrixState.students.filter(stu => currentMatrixState.selections[stu.num].includes(ev.id));
                 if(enrolled.length > 0) {
-                    const stuStrs = enrolled.map(s => `
-                        <div class="text-center bg-white border border-slate-200 rounded py-1 px-0.5 shadow-sm overflow-hidden flex flex-col justify-center items-center">
-                            <span class="text-slate-400 text-[10px] leading-none mb-0.5">${s.num}</span>
-                            <span class="${s.gender === 'M' ? 'text-blue-600' : 'text-pink-600'} font-bold text-[11px] sm:text-[13px] tracking-tighter truncate w-full px-1">${s.name}</span>
-                        </div>
-                    `).join('');
+                    // 分離男生與女生陣列
+                    const enrolledM = enrolled.filter(s => s.gender === 'M');
+                    const enrolledF = enrolled.filter(s => s.gender === 'F');
+
+                    let gridsHtml = '';
+                    
+                    // 男生排第一層網格：使用 text-center 置中，並用 py-2 留出上下空間防止截圖切字
+                    if(enrolledM.length > 0) {
+                        const stuStrsM = enrolledM.map(s => `
+                            <div class="bg-white border border-slate-200 rounded py-2 px-1 shadow-sm text-center whitespace-nowrap">
+                                <span class="text-slate-400 text-[11px] sm:text-[13px] mr-1 align-middle">${s.num}</span>
+                                <span class="text-blue-600 font-bold text-[13px] sm:text-[15px] align-middle">${s.name}</span>
+                            </div>
+                        `).join('');
+                        
+                        gridsHtml += `<div class="grid grid-cols-5 gap-1 sm:gap-2 mb-2">${stuStrsM}</div>`;
+                    }
+
+                    // 女生排第二層網格
+                    if(enrolledF.length > 0) {
+                        const stuStrsF = enrolledF.map(s => `
+                            <div class="bg-white border border-slate-200 rounded py-2 px-1 shadow-sm text-center whitespace-nowrap">
+                                <span class="text-slate-400 text-[11px] sm:text-[13px] mr-1 align-middle">${s.num}</span>
+                                <span class="text-pink-600 font-bold text-[13px] sm:text-[15px] align-middle">${s.name}</span>
+                            </div>
+                        `).join('');
+                        
+                        gridsHtml += `<div class="grid grid-cols-5 gap-1 sm:gap-2">${stuStrsF}</div>`;
+                    }
                     
                     receiptContainer.innerHTML += `
                         <div class="mb-5 bg-slate-50 p-3 rounded-lg border border-slate-200">
@@ -585,9 +612,8 @@
                                 <div><i class="${ev.icon} mr-2 text-indigo-500"></i>${ev.name}</div>
                                 <div class="text-xs text-slate-500 font-normal bg-white px-2 py-0.5 rounded-full border border-slate-200">共 ${enrolled.length} 人</div>
                             </div>
-                            <div class="grid grid-cols-5 gap-1 sm:gap-2">
-                                ${stuStrs}
-                            </div>
+                            <!-- 男生與女生的專屬網格會在這裡顯示 -->
+                            ${gridsHtml}
                         </div>
                     `;
                 }
@@ -620,14 +646,12 @@
             });
         });
 
-        // ★ 核心修改：正式打通資料寫入 API
         document.getElementById('registrationForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const btn = document.getElementById('finalSubmitBtn');
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 報名資料寫入中...';
             btn.disabled = true;
 
-            // 整理要上傳的資料包
             const classSelect = document.getElementById('classSelect');
             const classId = classSelect.value;
             const className = classSelect.options[classSelect.selectedIndex].textContent;
@@ -647,7 +671,6 @@
                 });
             });
 
-            // 發送真實 POST 請求
             fetch(API_URL, {
                 method: 'POST',
                 body: JSON.stringify({
@@ -663,7 +686,6 @@
                     btn.innerHTML = '<i class="fa-solid fa-check"></i> 送出成功';
                     showToast('報名資料已成功寫入雲端資料庫！', 'success');
                     
-                    // 等待 2 秒後重置畫面
                     setTimeout(() => {
                         btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> 確認並送出報名';
                         btn.disabled = false;
@@ -839,7 +861,7 @@
             if (window.location.hostname.includes('usercontent.goog') || window.location.hostname === 'localhost' || window.location.hostname === '') {
                 const devBtn = document.getElementById('devBypassBtn');
                 if(devBtn) {
-                    devBtn.classList.remove('hidden');
+                    devBtn.classList.remove('hidden')
                     devBtn.addEventListener('click', () => {
                         showToast('已啟用開發者通道，跳過登入驗證', 'info');
                         document.getElementById('adminUserEmail').innerHTML = `<i class="fa-solid fa-user-circle"></i> 開發測試者`;
