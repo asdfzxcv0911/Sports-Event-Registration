@@ -597,7 +597,7 @@
                 }
             });
 
-            document.getElementById('dynamicFormTitle').innerHTML = `<i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【${foundClass.name}報名表】${isTeacherMode ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full whitespace-nowrap"></span>' : ''}`;
+            document.getElementById('dynamicFormTitle').innerHTML = `<i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【${foundClass.name}報名表】${isTeacherMode ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full whitespace-nowrap">老師代打模式</span>' : ''}`;
             renderMatrixTable();
             updateMatrixLocks(); 
             
