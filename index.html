@@ -129,9 +129,12 @@
                                 </div>
                             </div>
 
-                            <div class="flex-shrink-0 pt-1">
-                                <button type="button" id="goToStep2Btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed">
-                                    下一步：產生報名收據 <i class="fa-solid fa-arrow-right"></i>
+                            <div class="flex-shrink-0 pt-1 flex gap-2">
+                                <button type="button" id="backToTeacherSelectBtn" class="hidden w-1/3 sm:w-1/4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl shadow-sm transition-all text-sm sm:text-base flex justify-center items-center gap-1">
+                                    <i class="fa-solid fa-rotate-left"></i> 重選
+                                </button>
+                                <button type="button" id="goToStep2Btn" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed">
+                                    下一步：產生收據 <i class="fa-solid fa-arrow-right"></i>
                                 </button>
                             </div>
                         </div>
@@ -191,7 +194,7 @@
         </div>
 
         <div class="mt-4 text-slate-400 text-sm">
-            &copy; 2026 二苓國小. 系統維護：<span id="secretAdminTrigger" class="cursor-pointer hover:text-slate-500 transition-colors select-none">體育組</span> V11
+            &copy; 2026 二苓國小. 系統維護：<span id="secretAdminTrigger" class="cursor-pointer hover:text-slate-500 transition-colors select-none">體育組</span> V13
         </div>
     </div>
 
@@ -222,7 +225,7 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <div class="bg-indigo-600 text-white p-2 rounded-lg"><i class="fa-solid fa-gear"></i></div>
-                    <h1 class="text-xl font-bold text-slate-800">報名系統後台 (V11)</h1>
+                    <h1 class="text-xl font-bold text-slate-800">報名系統後台 (V13)</h1>
                 </div>
                 <div class="flex items-center gap-4">
                     <span class="text-sm text-slate-500 font-bold" id="adminUserEmail"><i class="fa-solid fa-user-circle"></i> 體育組管理員</span>
@@ -377,7 +380,7 @@
 
     <script>
         /* ====================================================================
-           系統設定區 (V11 完整穩定版)
+           系統設定區 (V12 完整穩定版)
            ==================================================================== */
         const API_URL = "https://script.google.com/macros/s/AKfycbw1EJs7CkCcqVobhBhHZF7Mc69SyrSFrFQNYUig2gX_fjSYaeKvw7X1xd1btdGMYYMRmw/exec";
         
@@ -513,6 +516,16 @@
             }
         });
 
+        // 體育老師在報名表中點擊「重選班級」返回
+        document.getElementById('backToTeacherSelectBtn').addEventListener('click', () => {
+            currentMatrixState.classId = null;
+            currentMatrixState.className = '';
+            document.getElementById('classRegSection').classList.add('hidden');
+            document.getElementById('classRegSection').classList.remove('flex');
+            document.getElementById('teacherClassSelectSection').classList.remove('hidden');
+            document.getElementById('teacherClassSelectSection').classList.add('flex');
+        });
+
         /* ====================================================================
            前台：矩陣式報名邏輯 (修正男女生與座號比對)
            ==================================================================== */
@@ -539,7 +552,7 @@
                 const classSelect = document.getElementById('teacherClassDropdown');
                 classSelect.innerHTML = '';
                 
-                const allowedClassIds = (String(foundTeacher.classes) || '').split(',').map(s => s.trim()).filter(s => s);
+                const allowedClassIds = (String(foundTeacher.classes) || '').split(/[,，、\s]+/).map(s => s.trim()).filter(s => s);
                 let availableClasses = AppState.classes.filter(c => allowedClassIds.includes(String(c.id).trim()));
                 
                 if(availableClasses.length === 0) {
@@ -589,15 +602,22 @@
             pastRegs.forEach(reg => {
                 let targetKey = Object.keys(currentMatrixState.selections).find(k => String(k) === String(reg.num));
                 if(targetKey) {
-                    if(validEvents.some(ev => String(ev.id).trim() === String(reg.eventId).trim())) {
-                        if (!currentMatrixState.selections[targetKey].includes(String(reg.eventId).trim())) {
-                            currentMatrixState.selections[targetKey].push(String(reg.eventId).trim());
-                        }
+                    if(!currentMatrixState.selections[targetKey].includes(reg.eventId)) {
+                        currentMatrixState.selections[targetKey].push(reg.eventId);
                     }
                 }
             });
 
             document.getElementById('dynamicFormTitle').innerHTML = `<i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【${foundClass.name}報名表】${isTeacherMode ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full whitespace-nowrap">老師代打模式</span>' : ''}`;
+            
+            // 判斷是否顯示重選班級按鈕
+            const backBtn = document.getElementById('backToTeacherSelectBtn');
+            if (isTeacherMode) {
+                backBtn.classList.remove('hidden');
+            } else {
+                backBtn.classList.add('hidden');
+            }
+
             renderMatrixTable();
             updateMatrixLocks(); 
             
@@ -923,19 +943,25 @@
                         btn.disabled = false;
                         document.getElementById('registrationForm').reset();
                         
-                        document.getElementById('classPwdInput').value = '';
                         currentMatrixState.classId = null;
                         currentMatrixState.className = '';
+                        
                         document.getElementById('classRegSection').classList.add('hidden');
                         document.getElementById('classRegSection').classList.remove('flex');
-                        document.getElementById('classLoginSection').classList.remove('hidden');
-                        document.getElementById('classLoginSection').classList.add('flex');
-                        
                         document.getElementById('step2').classList.remove('flex');
                         document.getElementById('step2').classList.add('hidden');
-                        
                         document.getElementById('step1').classList.remove('hidden');
                         document.getElementById('step1').classList.add('flex');
+
+                        // 判斷送出後要回到的頁面 (體育老師回選班級，導師回首頁)
+                        if (currentLoginMode === 'teacher') {
+                            document.getElementById('teacherClassSelectSection').classList.remove('hidden');
+                            document.getElementById('teacherClassSelectSection').classList.add('flex');
+                        } else {
+                            document.getElementById('classPwdInput').value = '';
+                            document.getElementById('classLoginSection').classList.remove('hidden');
+                            document.getElementById('classLoginSection').classList.add('flex');
+                        }
                     }, 2000);
                 } else {
                     throw new Error('伺服器回傳錯誤或被阻擋');
@@ -1180,7 +1206,7 @@
                 tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
                 
                 const classBadges = String(t.classes || '')
-                    .split(',')
+                    .split(/[,，、\s]+/)
                     .map(x => x.trim())
                     .filter(x => x)
                     .map(c => `<span class="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-md border border-indigo-100 shadow-sm">${c}</span>`)
@@ -1240,7 +1266,10 @@
         document.getElementById('addAdminTeacherBtn').addEventListener('click', () => {
             const id = document.getElementById('newTeacherId').value.trim(); 
             const pwd = document.getElementById('newTeacherPwd').value.trim(); 
-            const classes = String(document.getElementById('newTeacherClasses').value).trim();
+            let classes = String(document.getElementById('newTeacherClasses').value).trim();
+            // 自動將全形逗號、頓號、空白都轉成標準半形逗號，避免系統判定錯誤
+            classes = classes.replace(/[,，、\s]+/g, ','); 
+            
             if(!id || !pwd || !classes) return showToast('請填寫完整', 'error');
 
             if (editingTeacherId) {
