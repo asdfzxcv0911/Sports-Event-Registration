@@ -1280,8 +1280,8 @@
            ==================================================================== */
         document.addEventListener('DOMContentLoaded', () => {
             const cacheBuster = new Date().getTime();
-            // 加入 redirect: 'follow' 確保抓取資料不會被轉址卡住
-            fetch(`${API_URL}?action=getData&_t=${cacheBuster}`, { redirect: 'follow' })
+            // 移除強制 redirect: 'follow' 避免部分瀏覽器產生 CORS Preflight 阻擋，加快載入速度
+            fetch(`${API_URL}?action=getData&_t=${cacheBuster}`)
             .then(res => {
                 if(!res.ok) {
                     console.error('伺服器回應異常，狀態碼:', res.status);
