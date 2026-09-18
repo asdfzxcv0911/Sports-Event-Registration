@@ -131,10 +131,10 @@
 
                             <div class="flex-shrink-0 pt-1 flex gap-2">
                                 <button type="button" id="backToTeacherSelectBtn" class="hidden w-1/3 sm:w-1/4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl shadow-sm transition-all text-sm sm:text-base flex justify-center items-center gap-1">
-                                    <i class="fa-solid fa-rotate-left"></i> 重選
+                                    <i class="fa-solid fa-rotate-left"></i> 回上一頁
                                 </button>
                                 <button type="button" id="goToStep2Btn" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl shadow-lg transition-all text-lg tracking-wider flex justify-center items-center gap-2 disabled:bg-slate-300 disabled:cursor-not-allowed">
-                                    下一步：產生收據 <i class="fa-solid fa-arrow-right"></i>
+                                    下一步 <i class="fa-solid fa-arrow-right"></i>
                                 </button>
                             </div>
                         </div>
@@ -615,7 +615,7 @@
                 }
             });
 
-            document.getElementById('dynamicFormTitle').innerHTML = `<i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【${foundClass.name}報名表】${isTeacherMode ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full whitespace-nowrap">老師代打模式</span>' : ''}`;
+            document.getElementById('dynamicFormTitle').innerHTML = `<i class="fa-solid fa-table-list mr-2 text-indigo-500"></i>【${foundClass.name}報名表】${isTeacherMode ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full whitespace-nowrap"></span>' : ''}`;
             
             // 判斷是否顯示重選班級按鈕
             const backBtn = document.getElementById('backToTeacherSelectBtn');
