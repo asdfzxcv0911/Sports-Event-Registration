@@ -19,7 +19,7 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        #bgCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.6; }
+        #bgCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.6; pointer-events: none; }
 
         /* 矩陣表格樣式 */
         .matrix-table th { position: sticky; top: 0; background-color: #f8fafc; z-index: 10; }
@@ -96,7 +96,7 @@
                             <p class="text-sm text-slate-500 mb-6 text-center px-2" id="loginDesc">請輸入體育組發放的班級密碼以進入專屬報名表</p>
                             
                             <div class="flex flex-row w-full max-w-[280px] sm:max-w-sm gap-2 justify-center mx-auto items-stretch">
-                                <input type="password" id="classPwdInput" inputmode="numeric" pattern="[0-9]*" class="w-2/3 border-2 border-slate-300 rounded-xl p-3 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-center font-bold tracking-widest text-xl shadow-inner min-w-0" placeholder="輸入密碼">
+                                <input type="password" id="classPwdInput" inputmode="numeric" class="w-2/3 border-2 border-slate-300 rounded-xl p-3 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none text-center font-bold tracking-widest text-xl shadow-inner min-w-0" placeholder="輸入密碼">
                                 <button type="button" id="classLoginBtn" disabled class="w-1/3 bg-slate-400 text-white font-bold py-3 px-2 rounded-xl shadow-md transition-all flex-shrink-0 cursor-not-allowed">載入中</button>
                             </div>
                         </div>
@@ -191,7 +191,7 @@
         </div>
 
         <div class="mt-4 text-slate-400 text-sm">
-            &copy; 2026 二苓國小. 系統維護：<span id="secretAdminTrigger" class="cursor-pointer hover:text-slate-500 transition-colors select-none">體育組</span> V9
+            &copy; 2026 二苓國小. 系統維護：<span id="secretAdminTrigger" class="cursor-pointer hover:text-slate-500 transition-colors select-none">體育組</span> V10
         </div>
     </div>
 
@@ -222,7 +222,7 @@
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <div class="bg-indigo-600 text-white p-2 rounded-lg"><i class="fa-solid fa-gear"></i></div>
-                    <h1 class="text-xl font-bold text-slate-800">報名系統後台</h1>
+                    <h1 class="text-xl font-bold text-slate-800">報名系統後台 (V10)</h1>
                 </div>
                 <div class="flex items-center gap-4">
                     <span class="text-sm text-slate-500 font-bold" id="adminUserEmail"><i class="fa-solid fa-user-circle"></i> 體育組管理員</span>
@@ -378,12 +378,13 @@
     <script>
         /* ====================================================================
            系統設定區 
-           ★ 請務必確認這裡的網址是您最新的 API_URL！ ★
+           ★ V10 穩定版 - 請確保 API_URL 正確 ★
            ==================================================================== */
         const API_URL = "https://script.google.com/macros/s/AKfycbw1EJs7CkCcqVobhBhHZF7Mc69SyrSFrFQNYUig2gX_fjSYaeKvw7X1xd1btdGMYYMRmw/exec";
         
         const GOOGLE_CLIENT_ID = "196046951115-43vvvc2c60hibgmcs3j1jh37f2e2e4sf.apps.googleusercontent.com";
-        const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.LI@gmail.com"];
+        // V10: 修復大小寫辨識錯誤 (LI -> li)
+        const AUTHORIZED_EMAILS = ["admin@school.edu.tw", "asdfzxcv0911.li@gmail.com"];
 
         /* ====================================================================
            資料層 (Data Layer)
@@ -468,7 +469,7 @@
         }
 
         /* ====================================================================
-           前台：登入切換與代打邏輯 (V4新增)
+           前台：登入切換與代打邏輯
            ==================================================================== */
         let currentLoginMode = 'homeroom';
 
@@ -540,7 +541,8 @@
                 const classSelect = document.getElementById('teacherClassDropdown');
                 classSelect.innerHTML = '';
                 
-                const allowedClassIds = (foundTeacher.classes || '').split(',').map(s => s.trim()).filter(s => s);
+                // V10: 強制文字轉換，避免純數字班級代碼(如301)導致 .split() 報錯當機
+                const allowedClassIds = (String(foundTeacher.classes) || '').split(',').map(s => s.trim()).filter(s => s);
                 let availableClasses = AppState.classes.filter(c => allowedClassIds.includes(String(c.id).trim()));
                 
                 if(availableClasses.length === 0) {
@@ -865,7 +867,7 @@
                 });
             });
 
-            // 加入通關密語：headers 與 redirect
+            // V10: 確保 headers 和 redirect 設定，避免按鈕卡死
             fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -908,23 +910,36 @@
                         document.getElementById('step1').classList.add('flex');
                     }, 2000);
                 } else {
-                    throw new Error('伺服器錯誤');
+                    throw new Error('伺服器回傳錯誤或被阻擋');
                 }
             })
             .catch(err => {
                 console.error(err);
                 btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> 寫入失敗，請重試';
                 btn.disabled = false;
-                showToast('連線失敗，請檢查網路或稍後重試', 'error');
+                showToast(`無法寫入資料，請確認 API 網址是否正確發布。(${err.message})`, 'error');
             });
         });
 
         /* ====================================================================
            管理員後台邏輯與雲端同步 
            ==================================================================== */
-        function syncClassesToCloud() { fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'saveClasses', classes: AppState.classes }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('班級已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
-        function syncEventsToCloud() { fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'saveEvents', events: AppState.events }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('項目已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
-        function syncTeachersToCloud() { fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'saveTeachers', teachers: AppState.teachers }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('老師資料已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
+        function syncClassesToCloud() { fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'saveClasses', classes: AppState.classes }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('班級已同步', 'success'); else showToast('同步失敗: ' + data.message, 'error'); }).catch((err) => showToast('網路同步失敗，請確認後台權限', 'error')); }
+        function syncEventsToCloud() { fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'saveEvents', events: AppState.events }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('項目已同步', 'success'); else showToast('同步失敗: ' + data.message, 'error'); }).catch((err) => showToast('網路同步失敗，請確認後台權限', 'error')); }
+        
+        // V10: 體育老師同步保護
+        function syncTeachersToCloud() { 
+            fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'saveTeachers', teachers: AppState.teachers }) })
+            .then(res => res.json())
+            .then(data => { 
+                if(data.status === 'success') showToast('老師資料已同步', 'success'); 
+                else showToast('同步失敗: 後台伺服器錯誤', 'error'); 
+            })
+            .catch((err) => {
+                console.error(err);
+                showToast('網路同步失敗，請確認是否建立了新版本部署！', 'error');
+            }); 
+        }
 
         // ==========================================
         // 編輯班級與項目邏輯
@@ -1026,7 +1041,7 @@
         });
 
         // ==========================================
-        // 編輯比賽項目邏輯 (V5修復補回)
+        // 編輯比賽項目邏輯
         // ==========================================
         document.querySelectorAll('#iconSelector .icon-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1127,23 +1142,35 @@
         });
 
         // ==========================================
-        // 體育老師設定邏輯 (V4新增)
+        // 體育老師設定邏輯
         // ==========================================
         function renderAdminTeachers() {
-            const tbody = document.getElementById('adminTeacherListTable'); tbody.innerHTML = '';
+            const tbody = document.getElementById('adminTeacherListTable'); 
+            tbody.innerHTML = '';
+            
+            // V10: 加入防當機強制轉型 String(t.classes || '')
             AppState.teachers.forEach((t) => {
-                const tr = document.createElement('tr'); tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
+                const tr = document.createElement('tr'); 
+                tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
+                
+                const classBadges = String(t.classes || '')
+                    .split(',')
+                    .map(x => x.trim())
+                    .filter(x => x)
+                    .map(c => `<span class="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-md border border-indigo-100 shadow-sm">${c}</span>`)
+                    .join('');
+
                 tr.innerHTML = `
-                    <td class="p-3 text-indigo-600 font-bold"><i class="fa-solid fa-user-tie mr-2 text-slate-400"></i>${t.id}</td>
-                    <td class="p-3 text-slate-600 font-mono font-bold">${t.password}</td>
+                    <td class="p-3 text-indigo-600 font-bold"><i class="fa-solid fa-user-tie mr-2 text-slate-400"></i>${String(t.id || '')}</td>
+                    <td class="p-3 text-slate-600 font-mono font-bold">${String(t.password || '')}</td>
                     <td class="p-3 text-slate-600">
                         <div class="flex flex-wrap gap-1">
-                            ${(t.classes || '').split(',').filter(x=>x).map(c => `<span class="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-md border border-indigo-100 shadow-sm">${c}</span>`).join('')}
+                            ${classBadges}
                         </div>
                     </td>
                     <td class="p-3 text-right whitespace-nowrap">
-                        <button onclick="editTeacher('${t.id}')" class="text-slate-400 hover:text-blue-500 p-2 transition-colors mr-1" title="編輯老師"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="confirmDeleteTeacher('${t.id}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
+                        <button onclick="editTeacher('${String(t.id || '')}')" class="text-slate-400 hover:text-blue-500 p-2 transition-colors mr-1" title="編輯老師"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="confirmDeleteTeacher('${String(t.id || '')}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
                     </td>`;
                 tbody.appendChild(tr);
             });
@@ -1187,7 +1214,8 @@
         document.getElementById('addAdminTeacherBtn').addEventListener('click', () => {
             const id = document.getElementById('newTeacherId').value.trim(); 
             const pwd = document.getElementById('newTeacherPwd').value.trim(); 
-            const classes = document.getElementById('newTeacherClasses').value.trim();
+            // 確保輸入的班級一律轉為字串
+            const classes = String(document.getElementById('newTeacherClasses').value).trim();
             if(!id || !pwd || !classes) return showToast('請填寫完整', 'error');
 
             if (editingTeacherId) {
@@ -1280,7 +1308,8 @@
            ==================================================================== */
         document.addEventListener('DOMContentLoaded', () => {
             const cacheBuster = new Date().getTime();
-            // 移除強制 redirect: 'follow' 避免部分瀏覽器產生 CORS Preflight 阻擋，加快載入速度
+            
+            // 嘗試載入資料，捕捉錯誤避免系統全掛
             fetch(`${API_URL}?action=getData&_t=${cacheBuster}`)
             .then(res => {
                 if(!res.ok) {
@@ -1309,14 +1338,14 @@
                     }
                 } catch(e) {
                     console.error('解析失敗, 可能是網址錯誤或未授權:', text);
-                    showToast('⚠️ 嚴重斷線！請確認您的 API_URL 網址是否正確更新', 'error');
+                    showToast('⚠️ 解析失敗！請確認 Apps Script 權限是否設為「所有人」', 'error');
                 }
             })
             .catch(err => {
                 console.error('連線失敗詳細資訊:', err);
                 const loginBtn = document.getElementById('classLoginBtn');
                 loginBtn.textContent = '連線失敗';
-                showToast(`⚠️ 網路連線失敗：${err.message}`, 'error');
+                showToast(`⚠️ 網路連線失敗：請檢查 API 網址是否失效`, 'error');
             });
 
             if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) { initGoogleSignIn(); } 
