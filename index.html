@@ -552,7 +552,14 @@
                 const classSelect = document.getElementById('teacherClassDropdown');
                 classSelect.innerHTML = '';
                 
-                const allowedClassIds = (String(foundTeacher.classes) || '').split(/[,，、\s]+/).map(s => s.trim()).filter(s => s);
+                let rawClasses = String(foundTeacher.classes || '').trim();
+                // 自動修復：處理被 Google 轉成 301302 或全形、空白分隔的狀況
+                if (!rawClasses.includes(',') && !rawClasses.includes('，') && rawClasses.length >= 6 && rawClasses.length % 3 === 0 && !isNaN(rawClasses)) {
+                    rawClasses = rawClasses.match(/.{1,3}/g).join(',');
+                }
+                rawClasses = rawClasses.replace(/[，、\s]+/g, ',');
+
+                const allowedClassIds = rawClasses.split(',').map(s => s.trim()).filter(s => s);
                 let availableClasses = AppState.classes.filter(c => allowedClassIds.includes(String(c.id).trim()));
                 
                 if(availableClasses.length === 0) {
@@ -1205,8 +1212,15 @@
                 const tr = document.createElement('tr'); 
                 tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
                 
-                const classBadges = String(t.classes || '')
-                    .split(/[,，、\s]+/)
+                let rawClasses = String(t.classes || '').trim();
+                // 自動修復：處理被 Google 轉成 301302 或全形、空白分隔的狀況
+                if (!rawClasses.includes(',') && !rawClasses.includes('，') && rawClasses.length >= 6 && rawClasses.length % 3 === 0 && !isNaN(rawClasses)) {
+                    rawClasses = rawClasses.match(/.{1,3}/g).join(',');
+                }
+                rawClasses = rawClasses.replace(/[，、\s]+/g, ',');
+
+                const classBadges = rawClasses
+                    .split(',')
                     .map(x => x.trim())
                     .filter(x => x)
                     .map(c => `<span class="px-2 py-1 bg-indigo-50 text-indigo-700 text-xs rounded-md border border-indigo-100 shadow-sm">${c}</span>`)
@@ -1266,10 +1280,7 @@
         document.getElementById('addAdminTeacherBtn').addEventListener('click', () => {
             const id = document.getElementById('newTeacherId').value.trim(); 
             const pwd = document.getElementById('newTeacherPwd').value.trim(); 
-            let classes = String(document.getElementById('newTeacherClasses').value).trim();
-            // 自動將全形逗號、頓號、空白都轉成標準半形逗號，避免系統判定錯誤
-            classes = classes.replace(/[,，、\s]+/g, ','); 
-            
+            const classes = String(document.getElementById('newTeacherClasses').value).trim();
             if(!id || !pwd || !classes) return showToast('請填寫完整', 'error');
 
             if (editingTeacherId) {
