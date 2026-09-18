@@ -191,7 +191,7 @@
         </div>
 
         <div class="mt-4 text-slate-400 text-sm">
-            &copy; 2026 二苓國小. 系統維護：<span id="secretAdminTrigger" class="cursor-pointer hover:text-slate-500 transition-colors select-none">體育組</span> v4
+            &copy; 2026 二苓國小. 系統維護：<span id="secretAdminTrigger" class="cursor-pointer hover:text-slate-500 transition-colors select-none">體育組</span> V5
         </div>
     </div>
 
@@ -1019,6 +1019,107 @@
                 document.getElementById('newClassId').value = ''; 
                 document.getElementById('newClassName').value = '';
                 document.getElementById('newClassPassword').value = '';
+            }
+        });
+
+        // ==========================================
+        // 編輯比賽項目邏輯 (V5修復補回)
+        // ==========================================
+        document.querySelectorAll('#iconSelector .icon-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('#iconSelector .icon-btn').forEach(b => { b.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-600'); b.classList.add('border-transparent', 'text-slate-400'); });
+                const currentBtn = e.currentTarget; currentBtn.classList.remove('border-transparent', 'text-slate-400'); currentBtn.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+                document.getElementById('newEventIcon').value = currentBtn.dataset.icon;
+            });
+        });
+
+        function renderAdminEvents() {
+            const tbody = document.getElementById('adminEventListTable'); tbody.innerHTML = '';
+            AppState.events.forEach((e, index) => {
+                const isFirst = index === 0; const isLast = index === AppState.events.length - 1;
+                const tr = document.createElement('tr'); tr.className = 'border-b border-slate-100 hover:bg-slate-50 transition-colors';
+                let gradeCheckboxes = '';
+                [3, 4, 5, 6].forEach(g => {
+                    const isChecked = !e.excludeGrades.includes(g) ? 'checked' : '';
+                    gradeCheckboxes += `<label class="inline-flex items-center mr-3 cursor-pointer select-none"><input type="checkbox" ${isChecked} onchange="AppState.toggleEventAllow('${e.id}', ${g})" class="form-checkbox h-4 w-4 text-indigo-600 rounded border-slate-300 cursor-pointer"><span class="ml-1 text-sm ${isChecked ? 'text-indigo-700 font-bold' : 'text-slate-400'}">${g}年級</span></label>`;
+                });
+                tr.innerHTML = `
+                    <td class="p-3 text-slate-400 text-xl"><i class="${e.icon}"></i></td><td class="p-3"><div class="font-bold text-slate-800">${e.name}</div><div class="text-xs text-slate-400">${e.id}</div></td><td class="p-3">${gradeCheckboxes}</td>
+                    <td class="p-3 text-right">
+                        <div class="inline-flex items-center gap-1 mr-4 bg-slate-100 rounded-lg">
+                            <button onclick="AppState.moveItem('events', ${index}, -1)" class="p-2 transition-colors ${isFirst ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isFirst ? 'disabled' : ''}><i class="fa-solid fa-arrow-up"></i></button><div class="w-px h-4 bg-slate-200"></div>
+                            <button onclick="AppState.moveItem('events', ${index}, 1)" class="p-2 transition-colors ${isLast ? 'text-slate-300 cursor-not-allowed' : 'text-slate-500 hover:text-indigo-600'}" ${isLast ? 'disabled' : ''}><i class="fa-solid fa-arrow-down"></i></button>
+                        </div>
+                        <button onclick="editEvent('${e.id}')" class="text-slate-400 hover:text-blue-500 p-2 transition-colors mr-1" title="編輯項目"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="confirmDeleteEvent('${e.id}', '${e.name}')" class="text-slate-400 hover:text-red-500 p-2 transition-colors" title="刪除"><i class="fa-solid fa-trash-can"></i></button>
+                    </td>`;
+                tbody.appendChild(tr);
+            });
+        }
+        
+        window.confirmDeleteEvent = function(id, name) { showConfirm(`確定刪除「${name}」？`, () => AppState.removeEvent(id)); }
+        
+        window.editEvent = function(id) {
+            const ev = AppState.events.find(x => String(x.id).trim() === String(id).trim());
+            if(!ev) return;
+            document.getElementById('newEventId').value = ev.id;
+            document.getElementById('newEventId').disabled = true;
+            document.getElementById('newEventName').value = ev.name;
+            document.getElementById('newEventIcon').value = ev.icon;
+            
+            document.querySelectorAll('#iconSelector .icon-btn').forEach(b => {
+                b.classList.remove('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+                b.classList.add('border-transparent', 'text-slate-400');
+                if (b.dataset.icon === ev.icon) {
+                    b.classList.remove('border-transparent', 'text-slate-400');
+                    b.classList.add('border-indigo-500', 'bg-indigo-50', 'text-indigo-600');
+                }
+            });
+            
+            const btn = document.getElementById('addAdminEventBtn');
+            btn.textContent = '儲存修改';
+            btn.classList.replace('bg-indigo-600', 'bg-amber-500');
+            btn.classList.replace('hover:bg-indigo-700', 'hover:bg-amber-600');
+            document.getElementById('cancelEditEventBtn').classList.remove('hidden');
+            editingEventId = id;
+            showToast(`正在編輯項目：${ev.name}`, 'info');
+            document.getElementById('newEventId').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        document.getElementById('cancelEditEventBtn').addEventListener('click', () => {
+            editingEventId = null;
+            document.getElementById('newEventId').disabled = false;
+            document.getElementById('newEventId').value = ''; 
+            document.getElementById('newEventName').value = '';
+            
+            const btn = document.getElementById('addAdminEventBtn');
+            btn.textContent = '新增';
+            btn.classList.replace('bg-amber-500', 'bg-indigo-600');
+            btn.classList.replace('hover:bg-amber-600', 'hover:bg-indigo-700');
+            document.getElementById('cancelEditEventBtn').classList.add('hidden');
+        });
+
+        document.getElementById('addAdminEventBtn').addEventListener('click', () => {
+            const id = document.getElementById('newEventId').value; 
+            const name = document.getElementById('newEventName').value; 
+            const icon = document.getElementById('newEventIcon').value;
+            if(!id || !name || !icon) return showToast('請填寫完整', 'error');
+            
+            if (editingEventId) {
+                const ev = AppState.events.find(x => String(x.id).trim() === String(editingEventId).trim());
+                if(ev) {
+                    ev.name = name;
+                    ev.icon = icon;
+                    syncEventsToCloud();
+                    renderAdminEvents();
+                    showToast('項目修改成功', 'success');
+                }
+                document.getElementById('cancelEditEventBtn').click(); 
+            } else {
+                if(AppState.events.some(e => String(e.id).trim() === String(id).trim())) return showToast('代碼已存在', 'error');
+                AppState.addEvent({ id, name, icon, excludeGrades: [] });
+                document.getElementById('newEventId').value = ''; 
+                document.getElementById('newEventName').value = '';
             }
         });
 
