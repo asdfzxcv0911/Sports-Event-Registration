@@ -865,8 +865,11 @@
                 });
             });
 
+            // 加入通關密語：headers 與 redirect
             fetch(API_URL, {
                 method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                redirect: 'follow',
                 body: JSON.stringify({
                     action: 'submitRegistration',
                     classId: classId,
@@ -919,9 +922,9 @@
         /* ====================================================================
            管理員後台邏輯與雲端同步 
            ==================================================================== */
-        function syncClassesToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveClasses', classes: AppState.classes }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('班級已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
-        function syncEventsToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveEvents', events: AppState.events }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('項目已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
-        function syncTeachersToCloud() { fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'saveTeachers', teachers: AppState.teachers }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('老師資料已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
+        function syncClassesToCloud() { fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'saveClasses', classes: AppState.classes }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('班級已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
+        function syncEventsToCloud() { fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'saveEvents', events: AppState.events }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('項目已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
+        function syncTeachersToCloud() { fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, redirect: 'follow', body: JSON.stringify({ action: 'saveTeachers', teachers: AppState.teachers }) }).then(res => res.json()).then(data => { if(data.status === 'success') showToast('老師資料已同步', 'success'); }).catch(() => showToast('同步失敗', 'error')); }
 
         // ==========================================
         // 編輯班級與項目邏輯
@@ -1277,7 +1280,8 @@
            ==================================================================== */
         document.addEventListener('DOMContentLoaded', () => {
             const cacheBuster = new Date().getTime();
-            fetch(`${API_URL}?action=getData&_t=${cacheBuster}`)
+            // 加入 redirect: 'follow' 確保抓取資料不會被轉址卡住
+            fetch(`${API_URL}?action=getData&_t=${cacheBuster}`, { redirect: 'follow' })
             .then(res => {
                 if(!res.ok) {
                     console.error('伺服器回應異常，狀態碼:', res.status);
